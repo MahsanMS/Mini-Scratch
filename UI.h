@@ -51,16 +51,14 @@ struct InputBox
         {
             Sint16 mx = e.button.x;
             Sint16 my = e.button.y;
-            active = x <= mx && mx <= x + w && y <= my
-            && my <= y + h;
+            active = x <= mx && mx <= x + w && y <= my && my <= y + h;
         }
 
         if (e.type == SDL_MOUSEMOTION)
         {
             Sint16 mx = e.motion.x;
             Sint16 my = e.motion.y;
-            hover = x <= mx && mx <= x + w && y <= my
-            && my <= y + h;
+            hover = x <= mx && mx <= x + w && y <= my && my <= y + h;
         }
 
         if (hover) return true;
@@ -100,7 +98,7 @@ struct InputBox
 
         if (line.text == "" && active && cursor_counter <= 25)
         {
-            SDL_Rect cursor = {x + 5, y + 5, 2, line.h};
+            SDL_Rect cursor = {x + 5, y + 3, 2, line.h - 5};
             SDL_SetRenderDrawColor(renderer, text_r, text_g, text_b, text_a);
 
             SDL_RenderFillRect(renderer, &cursor);
@@ -115,7 +113,7 @@ struct InputBox
 
             SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
 
-            SDL_Rect text_dst = {x + 5, y + 5, text_surface -> w, text_surface -> h};
+            SDL_Rect text_dst = {x + 4, y, text_surface -> w, text_surface -> h};
             SDL_RenderCopy(renderer, text_texture, nullptr, &text_dst);
 
             SDL_FreeSurface(text_surface);
@@ -123,7 +121,7 @@ struct InputBox
 
             if (active && cursor_counter <= 25)
             {
-                SDL_Rect cursor = {x + w - 5, y + 5, 2, line.h};
+                SDL_Rect cursor = {x + w - 5, y + 3, 2, line.h - 5};
                 SDL_SetRenderDrawColor(renderer, text_r, text_g, text_b, text_a);
 
                 SDL_RenderFillRect(renderer, &cursor);
@@ -173,10 +171,11 @@ struct Button
             if (active)
                 callback();
         }
-        else
+
+        else if (e.type == SDL_MOUSEMOTION)
         {
-            Sint16 mx = e.button.x;
-            Sint16 my = e.button.y;
+            Sint16 mx = e.motion.x;
+            Sint16 my = e.motion.y;
             hover = x <= mx && mx <= x + w && y <= my && my <= y + h;
             active = false;
         }
@@ -200,11 +199,17 @@ struct TextItem {
 
 struct Block
 {
+    int id;
     Sint16 x, y;
     Sint16 ghost_x, ghost_y;
     int width, height;
     int offset_x, offset_y;
     bool dragging = false;
+
+    bool is_original = false;
+    bool new_child = false;
+
+    bool child_change_position = false;
 
     string look;
     // 1 -> text
@@ -281,12 +286,12 @@ struct Block
         InputBox inp_box;
         inp_box.rel_x = width;
         inp_box.rel_y = 5;
+        inp_box.h = height - 10;
 
         inputs.push_back(inp_box);
 
         width += inp_box.w;
         width += 5;
-        height = max(height, inp_box.h + 10);
 
         look += '2';
     }
@@ -321,11 +326,19 @@ struct Block
             ghost_y = e.motion.y - offset_y;
         }
 
-        if (e.type == SDL_MOUSEBUTTONUP)
+        if (e.type == SDL_MOUSEBUTTONUP && dragging)
         {
+            if (is_original)
+            {
+                new_child = true;
+            }
+
+            else if (dragging)
+            {
+                child_change_position = true;
+            }
+
             dragging = false;
-            x = ghost_x;
-            y = ghost_y;
         }
     }
 
@@ -380,6 +393,92 @@ struct Block
         {
             boxRGBA(renderer, ghost_x, ghost_y, ghost_x + width, ghost_y + height, ghost_r, ghost_g,
                 ghost_b, ghost_a);
+        }
+    }
+};
+
+struct BlockManager
+{
+    Sint16 x, y;
+    int height, width;
+    int block_height = 20;
+
+    int id_counter = 0;
+
+    Uint8 border_r = 255, border_g = 255, border_b = 255, border_a = 255;
+
+    vector<Block> blocks;
+
+    BlockManager(Sint16 _x, Sint16 _y, int w, int h)
+    {
+        x = _x; y = _y; width = w; height = h;
+    }
+
+    void handle_original(Block& original_block)
+    {
+        if (original_block.new_child)
+        {
+            original_block.new_child = false;
+
+            int center_x = original_block.ghost_x + original_block.width / 2;
+            int center_y = original_block.ghost_y + original_block.height / 2;
+
+            if (x < center_x && center_x < x + width && y < center_y && center_y < y + height)
+            {
+                Block new_block = original_block;
+                new_block.is_original = false;
+
+                new_block.x = x + 10;
+                new_block.y = y + blocks.size() * 35 + 7;
+
+                blocks.push_back(new_block);
+
+                blocks.back().id = id_counter++;
+            }
+        }
+    }
+
+    void manage_event(SDL_Event& e)
+    {
+        for (int i = 0; i < blocks.size(); i++)
+        {
+            Block& it = blocks[i];
+            it.manage_event(e);
+
+            if (it.child_change_position)
+            {
+                it.child_change_position = false;
+
+                if ((it.ghost_y - y) / 35 != (it.y - y) / 35)
+                {
+                    int index_to_move = (it.ghost_y - y) / 35;
+
+                    if (index_to_move < 0) index_to_move = 0;
+                    if (index_to_move > blocks.size() - 1) index_to_move = blocks.size() - 1;
+
+                    Block copy = blocks[i];
+                    blocks.erase(blocks.begin() + i);
+                    blocks.insert(blocks.begin() + index_to_move, copy);
+
+                    for (int j = 0; j < blocks.size(); j++)
+                    {
+                        blocks[j].y = y + j * 35 + 7;
+                    }
+
+                    break;
+                }
+            }
+        }
+    }
+
+    void render(SDL_Renderer *renderer, TTF_Font* font)
+    {
+        rectangleRGBA(renderer, x, y, x + width, y + height, border_r, border_g, border_b, border_a);
+
+        if (!blocks.empty())
+        {
+            for (auto& it: blocks)
+                it.render(renderer, font);
         }
     }
 };
