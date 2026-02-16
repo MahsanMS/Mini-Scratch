@@ -1,7 +1,12 @@
 #ifndef UI
 #define UI
-#include <SDL2/SDL.h>
-#include <SDL2/SDL2_gfx.h>
+
+using namespace std;
+
+struct TextItem {
+    string text;
+    int w, h;
+};
 
 struct InputBox
 {
@@ -190,11 +195,6 @@ struct Button
         else
             roundedBoxRGBA(renderer, x, y, x + w, y + h, radius, button_r, button_g, button_b, button_a);
     }
-};
-
-struct TextItem {
-    string text;
-    int w, h;
 };
 
 struct Block
@@ -479,6 +479,88 @@ struct BlockManager
         {
             for (auto& it: blocks)
                 it.render(renderer, font);
+        }
+    }
+};
+
+struct OriginalBlocksManager
+{
+    Sint16 x, y;
+    int height, width;
+    int max_blocks_to_show;
+    int start_block = 0;
+    int end_block = 1;
+
+    Uint8 border_r = 255, border_g = 255, border_b = 255, border_a = 255;
+
+    vector<Block> original_blocks;
+
+    OriginalBlocksManager(Sint16 _x, Sint16 _y, int w, int h)
+    {
+        x = _x; y = _y; width = w; height = h;
+    }
+
+    void add_original_block(Block &block)
+    {
+        original_blocks.push_back(block);
+        original_blocks.back().x = x + 10;
+        original_blocks.back().y = y + (original_blocks.size() - 1) * 35 + 7;
+        original_blocks.back().is_original = true;
+
+        if (original_blocks.size() < max_blocks_to_show) end_block++;
+    }
+
+    void set_blocks_position()
+    {
+        for (int i = start_block; i < end_block; i++)
+        {
+            original_blocks[i].x = x + 10;
+            original_blocks[i].y = y + (i - start_block) * 35 + 7;
+        }
+    }
+
+    void go_down()
+    {
+        if (end_block < original_blocks.size())
+        {
+            start_block++;
+            end_block++;
+
+            set_blocks_position();
+        }
+    }
+
+    void go_up()
+    {
+        if (start_block > 0)
+        {
+            start_block--;
+            end_block--;
+
+            set_blocks_position();
+        }
+    }
+
+    void manage_event(SDL_Event& e, BlockManager& manager)
+    {
+        for (int i = start_block; i < end_block; i++)
+        {
+            auto& it = original_blocks[i];
+            it.manage_event(e);
+            manager.handle_original(it);
+        }
+    }
+
+    void render(SDL_Renderer* renderer, TTF_Font* font)
+    {
+        rectangleRGBA(renderer, x, y, x + width, y + height, border_r, border_g, border_b, border_a);
+
+        if (!original_blocks.empty())
+        {
+            for (int i = start_block; i < end_block; i++)
+            {
+                original_blocks[i].render(renderer, font);
+            }
         }
     }
 };
