@@ -143,7 +143,7 @@ struct Button
     bool hover = false;
 
     Uint8 button_r = 255, button_g = 255, button_b = 255, button_a = 255;
-    Uint8 active_r = 0, active_g = 255, active_b = 0, active_a = 255;
+    Uint8 active_r = 64, active_g = 64, active_b = 64, active_a = 255;
     Uint8 hover_r = 128, hover_g = 128, hover_b = 128, hover_a = 255;
 
     Button(Sint16 X, Sint16 Y, Sint16 W, Sint16 H, Sint16 rad)
@@ -199,7 +199,6 @@ struct Button
 
 struct Block
 {
-    int id;
     Sint16 x, y;
     Sint16 ghost_x, ghost_y;
     int width, height;
@@ -222,9 +221,9 @@ struct Block
     vector<TextItem> texts;
     vector<InputBox> inputs;
 
-    Block(Sint16 _x, Sint16 _y)
+    Block()
     {
-        x = _x; y = _y; height = 20; width = 10;
+        x = 0; y = 0; height = 20; width = 10;
     }
 
     void set_block_RGBA(Uint8 r, Uint8 g, Uint8 b, Uint8 a)
@@ -286,7 +285,7 @@ struct Block
         InputBox inp_box;
         inp_box.rel_x = width;
         inp_box.rel_y = 5;
-        inp_box.h = height - 10;
+        inp_box.h = max(height - 10, 18);
 
         inputs.push_back(inp_box);
 
@@ -403,15 +402,48 @@ struct BlockManager
     int height, width;
     int block_height = 20;
 
-    int id_counter = 0;
+    int max_blocks_to_show;
+    int start_block = 0;
+    int end_block = 1;
 
     Uint8 border_r = 255, border_g = 255, border_b = 255, border_a = 255;
 
     vector<Block> blocks;
 
-    BlockManager(Sint16 _x, Sint16 _y, int w, int h)
+    BlockManager(Sint16 _x, Sint16 _y, int w, int h, int count)
     {
-        x = _x; y = _y; width = w; height = h;
+        x = _x; y = _y; width = w; height = h; max_blocks_to_show = count;
+    }
+
+    void set_blocks_position()
+    {
+        for (int i = start_block; i < end_block; i++)
+        {
+            blocks[i].x = x + 10;
+            blocks[i].y = y + (i - start_block) * 35 + 7;
+        }
+    }
+
+    void go_down()
+    {
+        if (end_block < blocks.size())
+        {
+            start_block++;
+            end_block++;
+
+            set_blocks_position();
+        }
+    }
+
+    void go_up()
+    {
+        if (start_block > 0)
+        {
+            start_block--;
+            end_block--;
+
+            set_blocks_position();
+        }
     }
 
     void handle_original(Block& original_block)
@@ -433,14 +465,15 @@ struct BlockManager
 
                 blocks.push_back(new_block);
 
-                blocks.back().id = id_counter++;
+                end_block = min((int)blocks.size(), max_blocks_to_show);
             }
         }
     }
 
     void manage_event(SDL_Event& e)
     {
-        for (int i = 0; i < blocks.size(); i++)
+        if (blocks.empty()) return;
+        for (int i = start_block; i < end_block; i++)
         {
             Block& it = blocks[i];
             it.manage_event(e);
@@ -477,8 +510,10 @@ struct BlockManager
 
         if (!blocks.empty())
         {
-            for (auto& it: blocks)
-                it.render(renderer, font);
+            for (int i = start_block; i < end_block; i++)
+            {
+                blocks[i].render(renderer, font);
+            }
         }
     }
 };
@@ -487,6 +522,7 @@ struct OriginalBlocksManager
 {
     Sint16 x, y;
     int height, width;
+
     int max_blocks_to_show;
     int start_block = 0;
     int end_block = 1;
@@ -495,9 +531,11 @@ struct OriginalBlocksManager
 
     vector<Block> original_blocks;
 
-    OriginalBlocksManager(Sint16 _x, Sint16 _y, int w, int h)
+    OriginalBlocksManager() {}
+
+    OriginalBlocksManager(Sint16 _x, Sint16 _y, int w, int h, int count)
     {
-        x = _x; y = _y; width = w; height = h;
+        x = _x; y = _y; width = w; height = h; max_blocks_to_show = count;
     }
 
     void add_original_block(Block &block)
@@ -507,7 +545,7 @@ struct OriginalBlocksManager
         original_blocks.back().y = y + (original_blocks.size() - 1) * 35 + 7;
         original_blocks.back().is_original = true;
 
-        if (original_blocks.size() < max_blocks_to_show) end_block++;
+        end_block = min((int)original_blocks.size(), max_blocks_to_show);
     }
 
     void set_blocks_position()
@@ -543,6 +581,7 @@ struct OriginalBlocksManager
 
     void manage_event(SDL_Event& e, BlockManager& manager)
     {
+        if (original_blocks.empty()) return;
         for (int i = start_block; i < end_block; i++)
         {
             auto& it = original_blocks[i];
@@ -554,7 +593,6 @@ struct OriginalBlocksManager
     void render(SDL_Renderer* renderer, TTF_Font* font)
     {
         rectangleRGBA(renderer, x, y, x + width, y + height, border_r, border_g, border_b, border_a);
-
         if (!original_blocks.empty())
         {
             for (int i = start_block; i < end_block; i++)

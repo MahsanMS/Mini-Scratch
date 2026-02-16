@@ -5,9 +5,491 @@
 #include "UI.h"
 
 using namespace std;
+SDL_DisplayMode DM;
+int count;
+
+int tab_page = 0;
+void go_to_code_tab() {tab_page = 0;}
+
+OriginalBlocksManager all_original_managers[2];
+// 0 -> motion
+// 1 -> operators
+int original_manager_page = 0;
+
+void code_motion() {original_manager_page = 0;}
+void add_motion_blocks(TTF_Font*);
+
+void code_operators() {original_manager_page = 1;}
+void add_operators_blocks(TTF_Font*);
+
+void f() {}
+
+void go_up_original() {all_original_managers[original_manager_page].go_up();}
+void go_down_original() {all_original_managers[original_manager_page].go_down();}
 
 int main(int argc, char * argv[])
 {
+    SDL_Init(SDL_INIT_VIDEO);
+    TTF_Init();
+    SDL_StartTextInput();
+
+    SDL_GetCurrentDisplayMode(0, &DM);
+
+    SDL_Window* window = SDL_CreateWindow("Mini Scratch!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        DM.w * 0.975, DM.h * 0.89, SDL_WINDOW_SHOWN);
+
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+    SDL_Event event;
+    bool running = true;
+
+    TTF_Font* font = TTF_OpenFont("assests\\font\\CascadiaCode.ttf", 15);
+    if (font == nullptr)
+    {
+        cout << "Font not found..." << endl;
+        return 0;
+    }
+
+    Button code_button(0.015 * DM.w, 0.01 * DM.h, 0.075 * DM.w, 0.04 * DM.h, 7);
+    code_button.callback = &go_to_code_tab;
+
+    // custome tabs will be added later
+
+    // motion button
+    Button motion_code_button(0, 0.05 * DM.h, 0.035 * DM.w, 0.05 * DM.h, 10);
+    motion_code_button.set_button_RGBA(0, 153, 255, 255);
+    motion_code_button.set_hover_RGBA(127, 187, 227, 255);
+    motion_code_button.set_active_RGBA(0, 80, 133, 255);
+    motion_code_button.callback = &code_motion;
+
+    // operators button
+    Button operator_code_button(0, 0.1 * DM.h, 0.035 * DM.w, 0.05 * DM.h, 10);
+    operator_code_button.set_button_RGBA(2, 168, 21, 255);
+    operator_code_button.set_hover_RGBA(59, 235, 79, 255);
+    operator_code_button.set_active_RGBA(0, 77, 9, 255);
+    operator_code_button.callback = &code_operators;
+
+    ::count = DM.h * 0.83 / 35;
+
+    // OriginalBlocksManager original_blocks_manager(0.037 * DM.w, 0.053 * DM.h, 0.175 * DM.w, 0.83 * DM.h, count);
+    add_motion_blocks(font);
+    add_operators_blocks(font);
+
+    // go up and down buttons
+    Button go_up_original_button(0.193 * DM.w, 0.06 * DM.h, 18, 18, 10);
+    go_up_original_button.callback = &go_up_original;
+    Button go_down_original_button(0.193 * DM.w, 0.85 * DM.h, 18, 18, 10);
+    go_down_original_button.callback = &go_down_original;
+
+    BlockManager manager(0.214 * DM.w, 0.053 * DM.h, 0.425 * DM.w, 0.83 * DM.h, ::count); // will change to Sprite's manager later
+
+    while (running)
+    {
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_QUIT)
+                running = false;
+
+            else if (event.type == SDL_KEYDOWN)
+            {
+                if (event.key.keysym.sym == SDLK_ESCAPE)
+                {
+                    running = false;
+                    break;
+                }
+            }
+
+            // managers
+            all_original_managers[original_manager_page].manage_event(event, manager);
+            manager.manage_event(event);
+
+            // buttons
+            code_button.manage_event(event);
+
+            motion_code_button.manage_event(event);
+            operator_code_button.manage_event(event);
+
+            go_up_original_button.manage_event(event);
+            go_down_original_button.manage_event(event);
+        }
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+
+        // managers
+        all_original_managers[original_manager_page].render(renderer, font);
+        manager.render(renderer, font);
+
+        //buttons
+        code_button.render(renderer);
+
+        motion_code_button.render(renderer);
+        operator_code_button.render(renderer);
+
+        go_up_original_button.render(renderer);
+        go_down_original_button.render(renderer);
+
+        SDL_RenderPresent(renderer);
+        SDL_Delay(16);
+    }
+
+    TTF_Quit();
+    SDL_StopTextInput();
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
 
     return 0;
+}
+
+void add_motion_blocks(TTF_Font* font)
+{
+    // motion blocks
+    all_original_managers[0] = OriginalBlocksManager(0.037 * DM.w, 0.053 * DM.h, 0.175 * DM.w, 0.83 * DM.h, ::count);
+
+    // motion/move
+    Block* move_block = new Block();
+    move_block -> set_block_RGBA(0, 153, 255, 255);
+    move_block -> set_ghost_RGBA(127, 187, 227, 255);
+    move_block -> add_text("move", font);
+    move_block -> add_input();
+
+    all_original_managers[0].add_original_block(*move_block);
+    delete move_block;
+
+    // motion/turn_right
+    Block* turn_right_block = new Block();
+    turn_right_block -> set_block_RGBA(0, 153, 255, 255);
+    turn_right_block -> set_ghost_RGBA(127, 187, 227, 255);
+    turn_right_block -> add_text("turn right", font);
+    turn_right_block -> add_input();
+    turn_right_block -> add_text("degrees", font);
+
+    all_original_managers[0].add_original_block(*turn_right_block);
+    delete turn_right_block;
+
+    // motion/turn_left
+    Block* turn_left_block = new Block();
+    turn_left_block -> set_block_RGBA(0, 153, 255, 255);
+    turn_left_block -> set_ghost_RGBA(127, 187, 227, 255);
+    turn_left_block -> add_text("turn left", font);
+    turn_left_block -> add_input();
+    turn_left_block -> add_text("degrees", font);
+
+    all_original_managers[0].add_original_block(*turn_left_block);
+    delete turn_left_block;
+
+    // motion/go_to
+    Block* go_to_block = new Block();
+    go_to_block -> set_block_RGBA(0, 153, 255, 255);
+    go_to_block -> set_ghost_RGBA(127, 187, 227, 255);
+    go_to_block -> add_text("go to x:", font);
+    go_to_block -> add_input();
+    go_to_block -> add_text("y:", font);
+    go_to_block -> add_input();
+
+    all_original_managers[0].add_original_block(*go_to_block);
+    delete go_to_block;
+
+    // motion/set_direction
+    Block* set_direction_block = new Block();
+    set_direction_block -> set_block_RGBA(0, 153, 255, 255);
+    set_direction_block -> set_ghost_RGBA(127, 187, 227, 255);
+    set_direction_block -> add_text("set direction to", font);
+    set_direction_block -> add_input();
+
+    all_original_managers[0].add_original_block(*set_direction_block);
+    delete set_direction_block;
+
+    // motion/change_x_by
+    Block* change_x_block = new Block();
+    change_x_block -> set_block_RGBA(0, 153, 255, 255);
+    change_x_block -> set_ghost_RGBA(127, 187, 227, 255);
+    change_x_block -> add_text("change x by", font);
+    change_x_block -> add_input();
+
+    all_original_managers[0].add_original_block(*change_x_block);
+    delete change_x_block;
+
+    // motion/change_y_by
+    Block* change_y_block = new Block();
+    change_y_block -> set_block_RGBA(0, 153, 255, 255);
+    change_y_block -> set_ghost_RGBA(127, 187, 227, 255);
+    change_y_block -> add_text("change y by", font);
+    change_y_block -> add_input();
+
+    all_original_managers[0].add_original_block(*change_y_block);
+    delete change_y_block;
+
+    // motion/go_to_random_position
+    Block* go_random_block = new Block();
+    go_random_block -> set_block_RGBA(0, 153, 255, 255);
+    go_random_block -> set_ghost_RGBA(127, 187, 227, 255);
+    go_random_block -> add_text("go to random position", font);
+
+    all_original_managers[0].add_original_block(*go_random_block);
+    delete go_random_block;
+
+    // motion/stop_on_edge
+    Block* stop_on_edge_block = new Block();
+    stop_on_edge_block -> set_block_RGBA(0, 153, 255, 255);
+    stop_on_edge_block -> set_ghost_RGBA(127, 187, 227, 255);
+    stop_on_edge_block -> add_text("stop one edge", font);
+
+    all_original_managers[0].add_original_block(*stop_on_edge_block);
+    delete stop_on_edge_block;
+}
+
+void add_operators_blocks(TTF_Font* font)
+{
+    // operators blocks
+    all_original_managers[1] = OriginalBlocksManager(0.037 * DM.w, 0.053 * DM.h, 0.175 * DM.w, 0.83 * DM.h, ::count);
+
+    // operators/sum
+    Block* sum_block = new Block();
+    sum_block -> set_block_RGBA(2, 168, 21, 255);
+    sum_block -> set_ghost_RGBA(59, 235, 79, 255);
+    sum_block -> add_input();
+    sum_block -> add_text("+", font);
+    sum_block -> add_input();
+
+    all_original_managers[1].add_original_block(*sum_block);
+    delete sum_block;
+
+    // operators/subtract
+    Block* subtract_block = new Block();
+    subtract_block -> set_block_RGBA(2, 168, 21, 255);
+    subtract_block -> set_ghost_RGBA(59, 235, 79, 255);
+    subtract_block -> add_input();
+    subtract_block -> add_text("-", font);
+    subtract_block -> add_input();
+
+    all_original_managers[1].add_original_block(*subtract_block);
+    delete subtract_block;
+
+    // operators/multiply
+    Block* multiply_block = new Block();
+    multiply_block -> set_block_RGBA(2, 168, 21, 255);
+    multiply_block -> set_ghost_RGBA(59, 235, 79, 255);
+    multiply_block -> add_input();
+    multiply_block -> add_text("*", font);
+    multiply_block -> add_input();
+
+    all_original_managers[1].add_original_block(*multiply_block);
+    delete multiply_block;
+
+    // operators/divide
+    Block* divide_block = new Block();
+    divide_block -> set_block_RGBA(2, 168, 21, 255);
+    divide_block -> set_ghost_RGBA(59, 235, 79, 255);
+    divide_block -> add_input();
+    divide_block -> add_text("/", font);
+    divide_block -> add_input();
+
+    all_original_managers[1].add_original_block(*divide_block);
+    delete divide_block;
+
+    // operators/mod
+    Block* mod_block = new Block();
+    mod_block -> set_block_RGBA(2, 168, 21, 255);
+    mod_block -> set_ghost_RGBA(59, 235, 79, 255);
+    mod_block -> add_input();
+    mod_block -> add_text("mod", font);
+    mod_block -> add_input();
+
+    all_original_managers[1].add_original_block(*mod_block);
+    delete mod_block;
+
+    // operators/abs
+    Block* abs_block = new Block();
+    abs_block -> set_block_RGBA(2, 168, 21, 255);
+    abs_block -> set_ghost_RGBA(59, 235, 79, 255);
+    abs_block -> add_text("abs", font);
+    abs_block -> add_input();
+
+    all_original_managers[1].add_original_block(*abs_block);
+    delete abs_block;
+
+    // operators/square_root
+    Block* square_root_block = new Block();
+    square_root_block -> set_block_RGBA(2, 168, 21, 255);
+    square_root_block -> set_ghost_RGBA(59, 235, 79, 255);
+    square_root_block -> add_text("sqrt", font);
+    square_root_block -> add_input();
+
+    all_original_managers[1].add_original_block(*square_root_block);
+    delete square_root_block;
+
+    // oparetors/floor
+    Block* floor_block = new Block();
+    floor_block -> set_block_RGBA(2, 168, 21, 255);
+    floor_block -> set_ghost_RGBA(59, 235, 79, 255);
+    floor_block -> add_text("floor", font);
+    floor_block -> add_input();
+
+    all_original_managers[1].add_original_block(*floor_block);
+    delete floor_block;
+
+    // operators/ceil
+    Block* ceil_block = new Block();
+    ceil_block -> set_block_RGBA(2, 168, 21, 255);
+    ceil_block -> set_ghost_RGBA(59, 235, 76, 255);
+    ceil_block -> add_text("ceil", font);
+    ceil_block -> add_input();
+
+    all_original_managers[1].add_original_block(*ceil_block);
+    delete ceil_block;
+
+    // operators/sin
+    Block* sin_block = new Block();
+    sin_block -> set_block_RGBA(2, 168, 21, 255);
+    sin_block -> set_ghost_RGBA(59, 235, 76, 255);
+    sin_block -> add_text("sin", font);
+    sin_block -> add_input();
+    sin_block -> add_text("(degrees)", font);
+
+    all_original_managers[1].add_original_block(*sin_block);
+    delete sin_block;
+
+    // operators/cos
+    Block* cos_block = new Block();
+    cos_block -> set_block_RGBA(2, 168, 21, 255);
+    cos_block -> set_ghost_RGBA(59, 235, 76, 255);
+    cos_block -> add_text("cos", font);
+    cos_block -> add_input();
+    cos_block -> add_text("(degrees)", font);
+
+    all_original_managers[1].add_original_block(*cos_block);
+    delete cos_block;
+
+    // operators/lower_than
+    Block* lower_than_block = new Block();
+    lower_than_block -> set_block_RGBA(2, 168, 21, 255);
+    lower_than_block -> set_ghost_RGBA(59, 235, 76, 255);
+    lower_than_block -> add_input();
+    lower_than_block -> add_text("<", font);
+    lower_than_block -> add_input();
+
+    all_original_managers[1].add_original_block(*lower_than_block);
+    delete lower_than_block;
+
+    // operators/upper_than
+    Block* upper_than_block = new Block();
+    upper_than_block -> set_block_RGBA(2, 168, 21, 255);
+    upper_than_block -> set_ghost_RGBA(59, 235, 76, 255);
+    upper_than_block -> add_input();
+    upper_than_block -> add_text(">", font);
+    upper_than_block -> add_input();
+
+    all_original_managers[1].add_original_block(*upper_than_block);
+    delete upper_than_block;
+
+    // operators/equal
+    Block* equal_block = new Block();
+    equal_block -> set_block_RGBA(2, 168, 21, 255);
+    equal_block -> set_ghost_RGBA(59, 235, 76, 255);
+    equal_block -> add_input();
+    equal_block -> add_text("=", font);
+    equal_block -> add_input();
+
+    all_original_managers[1].add_original_block(*equal_block);
+    delete equal_block;
+
+    // operators/lower_or_equal
+    Block* le_block = new Block();
+    le_block -> set_block_RGBA(2, 168, 21, 255);
+    le_block -> set_ghost_RGBA(59, 235, 76, 255);
+    le_block -> add_input();
+    le_block -> add_text("<=", font);
+    le_block -> add_input();
+
+    all_original_managers[1].add_original_block(*le_block);
+    delete le_block;
+
+    // operators/upper_or_equal
+    Block* ue_block = new Block();
+    ue_block -> set_block_RGBA(2, 168, 21, 255);
+    ue_block -> set_ghost_RGBA(59, 235, 76, 255);
+    ue_block -> add_input();
+    ue_block -> add_text(">=", font);
+    ue_block -> add_input();
+
+    all_original_managers[1].add_original_block(*ue_block);
+    delete ue_block;
+
+    // operators/AND
+    Block* and_block = new Block();
+    and_block -> set_block_RGBA(2, 168, 21, 255);
+    and_block -> set_ghost_RGBA(59, 235, 76, 255);
+    and_block -> add_input();
+    and_block -> add_text("&&", font);
+    and_block -> add_input();
+
+    all_original_managers[1].add_original_block(*and_block);
+    delete and_block;
+
+    // operators/OR
+    Block* or_block = new Block();
+    or_block -> set_block_RGBA(2, 168, 21, 255);
+    or_block -> set_ghost_RGBA(59, 235, 76, 255);
+    or_block -> add_input();
+    or_block -> add_text("||", font);
+    or_block -> add_input();
+
+    all_original_managers[1].add_original_block(*or_block);
+    delete or_block;
+
+    // operators/NOT
+    Block* not_block = new Block();
+    not_block -> set_block_RGBA(2, 168, 21, 255);
+    not_block -> set_ghost_RGBA(59, 235, 76, 255);
+    not_block -> add_text("!", font);
+    not_block -> add_input();
+
+    all_original_managers[1].add_original_block(*not_block);
+    delete not_block;
+
+    // operators/XOR
+    Block* xor_block = new Block();
+    xor_block -> set_block_RGBA(2, 168, 21, 255);
+    xor_block -> set_ghost_RGBA(59, 235, 76, 255);
+    xor_block -> add_input();
+    xor_block -> add_text("^", font);
+    xor_block -> add_input();
+
+    all_original_managers[1].add_original_block(*xor_block);
+    delete xor_block;
+
+    // operators/length
+    Block* length_block = new Block();
+    length_block -> set_block_RGBA(2, 168, 21, 255);
+    length_block -> set_ghost_RGBA(59, 235, 76, 255);
+    length_block -> add_text("length", font);
+    length_block -> add_input();
+
+    all_original_managers[1].add_original_block(*length_block);
+    delete length_block;
+
+    // operators/Nth_char
+    Block* nth_char_block = new Block();
+    nth_char_block -> set_block_RGBA(2, 168, 21, 255);
+    nth_char_block -> set_ghost_RGBA(59, 235, 76, 255);
+    nth_char_block -> add_input();
+    nth_char_block -> add_text("th character of", font);
+    nth_char_block -> add_input();
+
+    all_original_managers[1].add_original_block(*nth_char_block);
+    delete nth_char_block;
+
+    // operators/merge_strings
+    Block* merge_block = new Block();
+    merge_block -> set_block_RGBA(2, 168, 21, 255);
+    merge_block -> set_ghost_RGBA(59, 235, 76, 255);
+    merge_block -> add_text("merge", font);
+    merge_block -> add_input();
+    merge_block -> add_text("and", font);
+    merge_block -> add_input();
+
+    all_original_managers[1].add_original_block(*merge_block);
+    delete merge_block;
 }
