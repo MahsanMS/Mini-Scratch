@@ -1,5 +1,5 @@
-#ifndef UI
-#define UI
+#ifndef MINI_SCRATCH_UI_H
+#define MINI_SCRATCH_UI_H
 
 using namespace std;
 
@@ -197,8 +197,26 @@ struct Button
     }
 };
 
+enum general_type {
+    MOTION, LOOKS, SOUND, EVENT, CONT, SENSE, OP, VAR, FUNC
+};
+
+enum control_blocks
+{
+    IF, ENDIF, ELSE, ENDELSE, REPEAT, ENDREAPET
+};
+
+struct id {
+    general_type general_type;
+    int id_number;
+    control_blocks control_mode;
+};
+
 struct Block
 {
+    id block_id;
+    bool parent_id = true;
+
     Sint16 x, y;
     Sint16 ghost_x, ghost_y;
     int width, height;
@@ -446,8 +464,10 @@ struct BlockManager
         }
     }
 
-    void handle_original(Block& original_block)
+    void handle_original(Block& original_block, TTF_Font* font)
     {
+        if (blocks.empty() && original_block.block_id.general_type != EVENT) return;
+
         if (original_block.new_child)
         {
             original_block.new_child = false;
@@ -457,13 +477,114 @@ struct BlockManager
 
             if (x < center_x && center_x < x + width && y < center_y && center_y < y + height)
             {
-                Block new_block = original_block;
-                new_block.is_original = false;
+                if (original_block.block_id.general_type == CONT)
+                {
+                    switch (original_block.block_id.id_number)
+                    {
+                    case 0:
+                        {
+                            Block start_if = original_block;
+                            Block end_if;
 
-                new_block.x = x + 10;
-                new_block.y = y + blocks.size() * 35 + 7;
+                            start_if.is_original = true;  // to not move
+                            end_if.is_original = true;  // to not move
 
-                blocks.push_back(new_block);
+                            start_if.x = x + 10;
+                            start_if.y = y + blocks.size() * 35 + 7;
+
+                            start_if.block_id.control_mode = IF;
+                            blocks.push_back(start_if);
+
+                            end_if.add_text("endif", font);
+
+                            end_if.set_block_RGBA(original_block.block_r, original_block.block_g, original_block.block_b, original_block.block_a);
+                            end_if.set_ghost_RGBA(original_block.ghost_r, original_block.ghost_g, original_block.ghost_b, original_block.ghost_a);
+
+                            end_if.x = x + 10;
+                            end_if.y = y + blocks.size() * 35 + 7;
+
+                            end_if.block_id = original_block.block_id;
+                            end_if.parent_id = original_block.parent_id;
+                            end_if.block_id.control_mode = ENDIF;
+                            blocks.push_back(end_if);
+                            break;
+                        }
+
+                    case 1:
+                        {
+                            Block start_if;
+                            start_if.is_original = true; // to not move
+
+                            start_if.set_block_RGBA(original_block.block_r, original_block.block_g, original_block.block_b, original_block.block_a);
+                            start_if.set_ghost_RGBA(original_block.ghost_r, original_block.ghost_g, original_block.ghost_b, original_block.ghost_a);
+
+                            start_if.block_id = original_block.block_id;
+                            start_if.parent_id = original_block.parent_id;
+
+                            Block start_else = start_if, endelse = start_if;
+
+                            start_if.x = x + 10;
+                            start_if.y = y + blocks.size() * 35 + 7;
+                            start_if.add_text("if", font);
+                            start_if.block_id.control_mode = IF;
+                            blocks.push_back(start_if);
+
+                            start_else.x = x + 10;
+                            start_else.y = y + blocks.size() * 35 + 7;
+                            start_else.add_text("else", font);
+                            start_else.block_id.control_mode = ELSE;
+                            blocks.push_back(start_else);
+
+                            endelse.x = x + 10;
+                            endelse.y = y + blocks.size() * 35 + 7;
+                            endelse.add_text("endelse", font);
+                            endelse.block_id.control_mode = ENDELSE;
+                            blocks.push_back(endelse);
+
+                            break;
+                        }
+
+                    case 2:
+                        {
+                            Block start_repeat = original_block;
+                            Block end_repeat;
+
+                            start_repeat.is_original = true;
+                            end_repeat.is_original = true;
+
+                            start_repeat.x = x + 10;
+                            start_repeat.y = y + blocks.size() * 35 + 7;
+
+                            start_repeat.block_id.control_mode = REPEAT;
+                            blocks.push_back(start_repeat);
+
+                            end_repeat.add_text("endrepeat", font);
+                            end_repeat.set_block_RGBA(original_block.block_r, original_block.block_g, original_block.block_b, original_block.block_a);
+                            end_repeat.set_ghost_RGBA(original_block.ghost_r, original_block.ghost_g, original_block.ghost_b, original_block.ghost_a);
+
+                            end_repeat.x = x + 10;
+                            end_repeat.y = y + blocks.size() * 35 + 7;
+
+                            end_repeat.block_id.general_type = CONT;
+                            end_repeat.parent_id = original_block.parent_id;
+                            end_repeat.block_id.control_mode = ENDREAPET;
+                            blocks.push_back(end_repeat);
+
+                            break;
+                        }
+                    }
+                }
+
+                else
+                {
+                    Block new_block = original_block;
+                    new_block.is_original = false;
+
+                    new_block.x = x + 10;
+                    new_block.y = y + blocks.size() * 35 + 7;
+
+                    blocks.push_back(new_block);
+                }
 
                 end_block = min((int)blocks.size(), max_blocks_to_show);
             }
@@ -579,14 +700,14 @@ struct OriginalBlocksManager
         }
     }
 
-    void manage_event(SDL_Event& e, BlockManager& manager)
+    void manage_event(SDL_Event& e, BlockManager& manager, TTF_Font* font)
     {
         if (original_blocks.empty()) return;
         for (int i = start_block; i < end_block; i++)
         {
             auto& it = original_blocks[i];
             it.manage_event(e);
-            manager.handle_original(it);
+            manager.handle_original(it, font);
         }
     }
 
@@ -601,6 +722,63 @@ struct OriginalBlocksManager
             }
         }
     }
+};
+
+struct sprite_state {
+    float x,y;
+    float direction;
+    float minX, maxX, minY, maxY;
+    float size;
+    bool visible;
+    sprite_state() {
+        x = 0.0f;
+        y = 0.0f;
+        direction = 90.0f;      // Facing right
+        visible = true;
+        size=100.0f;
+
+        // Scratch screen dimensions
+        minX = -240.0f;
+        maxX = 240.0f;
+        minY = -180.0f;
+        maxY = 180.0f;
+    }
+};
+
+struct Custom {
+    string name;
+    SDL_Texture* texture;
+
+};
+
+struct BackDrop {
+    string name;
+    float width,height;
+    SDL_Texture* texture;
+
+};
+
+struct Stage {
+    std::vector<BackDrop> backdrops;
+    int current_backdrop = 0;
+};
+
+struct Sprite {
+    std::string name;
+    sprite_state state;
+    std::unordered_map<string,float> variables;
+
+    BlockManager blocks;
+    int current_block;
+    bool is_running = false;
+    std::vector<Custom> customs;
+    int current_custom;
+    SDL_Rect rect;
+    std::string saytext;
+    int say_time=0;
+    std::string thinktext;
+    int think_time=0;
+    bool sprite_clicked = false;
 };
 
 #endif
