@@ -3,10 +3,9 @@
 #include <SDL2/SDL2_gfx.h>
 #include <SDL2/SDL_ttf.h>
 #include "UI.h"
+#include "events.h"
 
 using namespace std;
-SDL_DisplayMode DM;
-int count;
 
 int tab_page = 0;
 void go_to_code_tab() {tab_page = 0;}
@@ -17,6 +16,7 @@ int looks_index = 1;
 int events_index = 2;
 int control_index = 3;
 int operators_index = 4;
+
 int original_manager_page = 0;
 
 void code_motion() {original_manager_page = motion_index;}
@@ -34,10 +34,32 @@ void add_control_blocks(TTF_Font*);
 void code_operators() {original_manager_page = operators_index;}
 void add_operators_blocks(TTF_Font*);
 
-void f() {}
-
 void go_up_original() {all_original_managers[original_manager_page].go_up();}
 void go_down_original() {all_original_managers[original_manager_page].go_down();}
+
+SpriteManager sprite_manager;
+Sprite sprites[50];
+
+int sprite_page = 0;
+
+void go_up_block_manager() {sprites[sprite_page].blocks.go_up();}
+void go_down_block_manager() {sprites[sprite_page].blocks.go_down();}
+
+void go_up_sprite_manager() {sprite_manager.go_up();}
+void go_down_sprite_manager() {sprite_manager.go_down();}
+
+void add_new_sprite()
+{
+    int index = sprite_manager.sprites.size();
+    sprites[index].name = "Sprite" + to_string(index);
+    sprites[index].blocks = BlockManager(0.239 * DM.w, 0.053 * DM.h, 0.425 * DM.w, 0.83 * DM.h, ::count);
+    sprite_manager.add_sprite(&sprites[index]);
+
+    while (sprite_manager.end_sprite < index)
+        go_down_sprite_manager();
+
+    go_down_sprite_manager();
+}
 
 int main(int argc, char * argv[])
 {
@@ -117,7 +139,29 @@ int main(int argc, char * argv[])
     Button go_down_original_button(0.218 * DM.w, 0.85 * DM.h, 18, 18, 10);
     go_down_original_button.callback = &go_down_original;
 
-    BlockManager manager(0.239 * DM.w, 0.053 * DM.h, 0.425 * DM.w, 0.83 * DM.h, ::count); // will change to Sprite's manager later
+    Button go_up_block_manager_button(0.64375 * DM.w, 0.06 * DM.h, 18, 18, 10);
+    go_up_block_manager_button.callback = &go_up_block_manager;
+    Button go_down_block_manager_button(0.64375 * DM.w, 0.85 * DM.h, 18, 18, 10);
+    go_down_block_manager_button.callback = &go_down_block_manager;
+
+    Button go_up_sprite_button(0.954 * DM.w, 0.64 * DM.h, 15, 15, 9);
+    go_up_sprite_button.callback = &go_up_sprite_manager;
+    Button go_down_sprite_button(0.954 * DM.w, 0.847 * DM.h, 15, 15, 9);
+    go_down_sprite_button.callback = &go_down_sprite_manager;
+
+    Button add_sprite_button(0.954 * DM.w, 0.7435 * DM.h, 15, 15, 0);
+    add_sprite_button.callback = &add_new_sprite;
+    add_sprite_button.set_button_RGBA(0, 255, 0, 255);
+    add_sprite_button.set_hover_RGBA(0, 128, 0, 255);
+    add_sprite_button.set_active_RGBA(0, 61, 158, 255);
+
+    // BlockManager manager(0.239 * DM.w, 0.053 * DM.h, 0.425 * DM.w, 0.83 * DM.h, ::count); // will change to Sprite's manager later
+
+    sprite_manager = SpriteManager(0.666 * DM.w, 0.625 * DM.h, 0.305 * DM.w, 0.2575 * DM.h, 0.2575 * DM.h / 37);
+
+    sprites[0].name = "Sprite0";
+    sprites[0].blocks = BlockManager(0.239 * DM.w, 0.053 * DM.h, 0.425 * DM.w, 0.83 * DM.h, ::count);
+    sprite_manager.add_sprite(&sprites[0]);
 
     while (running)
     {
@@ -133,15 +177,24 @@ int main(int argc, char * argv[])
                     running = false;
                     break;
                 }
+
+                if (event.key.keysym.sym == SDLK_SPACE) Space = true;
+                else if (event.key.keysym.sym == SDLK_UP) Up = true;
+                else if (event.key.keysym.sym == SDLK_DOWN) Down = true;
+                else if (event.key.keysym.sym == SDLK_RIGHT) Right = true;
+                else if (event.key.keysym.sym == SDLK_LEFT) Left = true;
+
+                // green flag...
             }
 
             // managers
-            all_original_managers[original_manager_page].manage_event(event, manager, font);
-            manager.manage_event(event);
+            all_original_managers[original_manager_page].manage_event(event, sprites[sprite_page].blocks, font);
+            sprites[sprite_page].blocks.manage_event(event);
 
             // buttons
             code_button.manage_event(event);
 
+            // code buttons
             motion_code_button.manage_event(event);
             looks_code_button.manage_event(event);
             events_code_button.manage_event(event);
@@ -150,6 +203,18 @@ int main(int argc, char * argv[])
 
             go_up_original_button.manage_event(event);
             go_down_original_button.manage_event(event);
+
+            go_up_block_manager_button.manage_event(event);
+            go_down_block_manager_button.manage_event(event);
+
+            go_up_sprite_button.manage_event(event);
+            go_down_sprite_button.manage_event(event);
+
+            add_sprite_button.manage_event(event);
+
+            // sprites
+            sprite_manager.manage_event(event);
+            sprite_page = sprite_manager.index_of_active;
         }
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -157,11 +222,12 @@ int main(int argc, char * argv[])
 
         // managers
         all_original_managers[original_manager_page].render(renderer, font);
-        manager.render(renderer, font);
+        sprites[sprite_page].blocks.render(renderer, font);
 
         //buttons
         code_button.render(renderer);
 
+        //code buttons
         motion_code_button.render(renderer);
         looks_code_button.render(renderer);
         events_code_button.render(renderer);
@@ -170,6 +236,17 @@ int main(int argc, char * argv[])
 
         go_up_original_button.render(renderer);
         go_down_original_button.render(renderer);
+
+        go_up_block_manager_button.render(renderer);
+        go_down_block_manager_button.render(renderer);
+
+        go_up_sprite_button.render(renderer);
+        go_down_sprite_button.render(renderer);
+
+        add_sprite_button.render(renderer);
+
+        // sprites
+        sprite_manager.render(renderer, font);
 
         SDL_RenderPresent(renderer);
         SDL_Delay(16);
@@ -511,6 +588,17 @@ void add_events_blocks(TTF_Font* font)
     left_block -> block_id.id_number = 5;
     all_original_managers[events_index].add_original_block(*left_block);
     delete left_block;
+
+    // events/clicked
+    Block* click_block = new Block();
+    click_block -> set_block_RGBA(255, 255, 0, 255);
+    click_block -> set_ghost_RGBA(255, 255, 115, 255);
+    click_block -> add_text("when this sprite clicked", font);
+
+    click_block -> block_id.general_type = EVENT;
+    click_block -> block_id.id_number = 6;
+    all_original_managers[events_index].add_original_block(*click_block);
+    delete click_block;
 }
 
 void add_control_blocks(TTF_Font* font)

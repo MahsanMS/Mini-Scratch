@@ -3,6 +3,9 @@
 
 using namespace std;
 
+SDL_DisplayMode DM;
+int count;
+
 struct TextItem {
     string text;
     int w, h;
@@ -166,7 +169,7 @@ struct Button
         hover_r = r; hover_g = g; hover_b = b; hover_a = a;
     }
 
-    void manage_event(const SDL_Event &e)
+    bool manage_event(const SDL_Event &e)
     {
         if (e.type == SDL_MOUSEBUTTONDOWN)
         {
@@ -174,7 +177,10 @@ struct Button
             Sint16 my = e.button.y;
             active = x <= mx && mx <= x + w && y <= my && my <= y + h;
             if (active)
+            {
                 callback();
+                return true;
+            }
         }
 
         else if (e.type == SDL_MOUSEMOTION)
@@ -184,6 +190,8 @@ struct Button
             hover = x <= mx && mx <= x + w && y <= my && my <= y + h;
             active = false;
         }
+
+        return false;
     }
 
     void render(SDL_Renderer *renderer)
@@ -428,9 +436,9 @@ struct BlockManager
 
     vector<Block> blocks;
 
-    BlockManager(Sint16 _x, Sint16 _y, int w, int h, int count)
+    BlockManager(Sint16 _x, Sint16 _y, int w, int h, int max_show)
     {
-        x = _x; y = _y; width = w; height = h; max_blocks_to_show = count;
+        x = _x; y = _y; width = w; height = h; max_blocks_to_show = max_show;
     }
 
     void set_blocks_position()
@@ -467,6 +475,7 @@ struct BlockManager
     void handle_original(Block& original_block, TTF_Font* font)
     {
         if (blocks.empty() && original_block.block_id.general_type != EVENT) return;
+        if (!blocks.empty() && original_block.block_id.general_type == EVENT) return;
 
         if (original_block.new_child)
         {
@@ -578,7 +587,7 @@ struct BlockManager
                 else
                 {
                     Block new_block = original_block;
-                    new_block.is_original = false;
+                    new_block.is_original = original_block.block_id.general_type == EVENT;
 
                     new_block.x = x + 10;
                     new_block.y = y + blocks.size() * 35 + 7;
@@ -586,7 +595,7 @@ struct BlockManager
                     blocks.push_back(new_block);
                 }
 
-                end_block = min((int)blocks.size(), max_blocks_to_show);
+                end_block = min((int)blocks.size(), start_block + max_blocks_to_show);
             }
         }
     }
@@ -607,16 +616,18 @@ struct BlockManager
                 {
                     int index_to_move = (it.ghost_y - y) / 35;
 
-                    if (index_to_move < 0) index_to_move = 0;
-                    if (index_to_move > blocks.size() - 1) index_to_move = blocks.size() - 1;
+                    if (index_to_move <= 0) index_to_move = 0;
+                    else if (index_to_move > blocks.size() - 1) index_to_move = blocks.size() - 1;
+
+                    if (start_block == 0 && index_to_move == 0) index_to_move = 1;
 
                     Block copy = blocks[i];
                     blocks.erase(blocks.begin() + i);
-                    blocks.insert(blocks.begin() + index_to_move, copy);
+                    blocks.insert(blocks.begin() + start_block + index_to_move, copy);
 
                     for (int j = 0; j < blocks.size(); j++)
                     {
-                        blocks[j].y = y + j * 35 + 7;
+                        blocks[start_block + j].y = y + j * 35 + 7;
                     }
 
                     break;
@@ -654,9 +665,9 @@ struct OriginalBlocksManager
 
     OriginalBlocksManager() {}
 
-    OriginalBlocksManager(Sint16 _x, Sint16 _y, int w, int h, int count)
+    OriginalBlocksManager(Sint16 _x, Sint16 _y, int w, int h, int max_show)
     {
-        x = _x; y = _y; width = w; height = h; max_blocks_to_show = count;
+        x = _x; y = _y; width = w; height = h; max_blocks_to_show = max_show;
     }
 
     void add_original_block(Block &block)
@@ -726,6 +737,7 @@ struct OriginalBlocksManager
 
 struct sprite_state {
     float x,y;
+    float w,h;
     float direction;
     float minX, maxX, minY, maxY;
     float size;
@@ -748,7 +760,7 @@ struct sprite_state {
 struct Custom {
     string name;
     SDL_Texture* texture;
-
+    SDL_Texture* canvas;
 };
 
 struct BackDrop {
@@ -773,12 +785,247 @@ struct Sprite {
     bool is_running = false;
     std::vector<Custom> customs;
     int current_custom;
-    SDL_Rect rect;
+    int scaled_w=state.w*(state.size/100.0f);
+    int scaled_h=state.h*(state.size/100.0f);
+    SDL_Rect rect={(int)state.x,(int)state.y,scaled_w,scaled_h};
     std::string saytext;
     int say_time=0;
     std::string thinktext;
     int think_time=0;
     bool sprite_clicked = false;
+    bool dragging = false;
+    int offset_x=0;
+    int offset_y=0;
+
+    Sprite() : blocks(0.239 * DM.w, 0.053 * DM.h, 0.425 * DM.w, 0.83 * DM.h, ::count)
+    {}
+
+    void manage_event(SDL_Event& e) {
+
+        if (e.type == SDL_MOUSEBUTTONDOWN) {
+            int mx = e.button.x;
+            int my = e.button.y;
+
+            if (!dragging) {
+                if (mx >= rect.x && mx <= rect.x + rect.w && my >= rect.y && my <= rect.y + rect.h) {
+                    dragging=true;
+
+                    offset_x = mx - rect.x;
+                    offset_y = my - rect.y;
+                    sprite_clicked = true;
+                }
+            }
+        }
+
+        if (e.type == SDL_MOUSEBUTTONUP && dragging) {
+            dragging =false;
+        }
+
+        if (e.type == SDL_MOUSEMOTION && dragging)
+        {
+            state.x = e.motion.x - offset_x;
+            state.y = e.motion.y - offset_y;
+        }
+    }
+};
+
+void render_speech(SDL_Renderer* renderer, Sprite& sprite) {
+    //render bubble
+    //render say text
+}
+void render_think(SDL_Renderer* renderer, Sprite& sprite) {
+    //render bubble
+    //render say text
+}
+void render_sprite(SDL_Renderer* renderer, Sprite& sprite)
+{
+    SDL_Point center;
+    center.x = sprite.rect.w/2;
+    center.y = sprite.rect.h/2;
+    SDL_Texture* texture=sprite.customs[sprite.current_custom].texture;
+    SDL_Texture* canva=sprite.customs[sprite.current_custom].canvas;
+
+    SDL_Rect rect=sprite.rect;
+    if (sprite.say_time !=0)
+    {
+        //render_speech(SDL_Renderer* renderer, Sprite& sprite)
+    }
+
+    if (sprite.say_time !=0)
+    {
+        // render_think(SDL_Renderer* renderer, Sprite& sprite)
+    }
+    SDL_RenderCopyEx(renderer,texture,NULL,&rect,sprite.state.direction,&center,SDL_FLIP_NONE);
+    SDL_RenderCopyEx(renderer,canva,NULL,&rect,sprite.state.direction,&center,SDL_FLIP_NONE);
+    SDL_RenderPresent(renderer);
+}
+
+struct SpriteSelection
+{
+    Sprite* sprite;
+    bool active = false;
+    bool new_activate_action = false;
+
+    Button select_button;
+
+    SpriteSelection(Sprite* spr, Sint16 x, Sint16 y, Sint16 w, Sint16 h)
+        : sprite(spr), select_button(x, y, w, h, 6)
+    {
+        select_button.callback = [&]()
+        {
+            active = true;
+            new_activate_action = true;
+        };
+    }
+
+    bool manage_event(SDL_Event& e)
+    {
+        new_activate_action = select_button.manage_event(e);
+        return new_activate_action;
+    }
+
+    void render(SDL_Renderer* renderer, TTF_Font* font)
+    {
+        if (!active)
+        {
+            select_button.set_button_RGBA(255, 255, 255, 255);
+            select_button.set_hover_RGBA(128, 128, 128, 255);
+            select_button.set_active_RGBA(64, 64, 64, 255);
+        }
+        else
+        {
+            select_button.set_button_RGBA(66, 135, 245, 255);
+            select_button.set_hover_RGBA(142, 182, 245, 255);
+            select_button.set_active_RGBA(0, 61, 158, 255);
+        }
+
+        select_button.render(renderer);
+
+        if (!sprite) return;
+
+        SDL_Color color = {0, 0, 0, 255};
+
+        SDL_Surface* s = TTF_RenderUTF8_Blended(font, sprite -> name.c_str(), color);
+        if (!s) return;
+
+        SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer, s);
+
+        SDL_Rect dst;
+        dst.x = select_button.x + 5;
+        dst.y = select_button.y + 5;
+        dst.w = s -> w;
+        dst.h = s -> h;
+
+        SDL_RenderCopy(renderer, tex, nullptr, &dst);
+
+        SDL_FreeSurface(s);
+        SDL_DestroyTexture(tex);
+    }
+};
+
+struct SpriteManager
+{
+    Sint16 x, y;
+    int width, height;
+
+    int max_sprites_to_show;
+    int start_sprite = 0;
+    int end_sprite = 1;
+
+    int index_of_active = 0;
+
+    vector<SpriteSelection> sprites;
+
+    Uint8 border_r = 255, border_g = 255, border_b = 255, border_a = 255;
+
+    SpriteManager() {}
+
+    SpriteManager(Sint16 _x, Sint16 _y, int w, int h, int max_show)
+    {
+        x = _x;
+        y = _y;
+        width = w;
+        height = h;
+        max_sprites_to_show = max_show;
+    }
+
+    void set_sprites_position()
+    {
+        for (int i = start_sprite; i < end_sprite; i++)
+        {
+            sprites[i].select_button.x = x + 10;
+            sprites[i].select_button.y = y + (i - start_sprite) * 37 + 10;
+        }
+    }
+
+    void go_down()
+    {
+        if (end_sprite < sprites.size())
+        {
+            start_sprite++;
+            end_sprite++;
+            set_sprites_position();
+        }
+    }
+
+    void go_up()
+    {
+        if (start_sprite > 0)
+        {
+            start_sprite--;
+            end_sprite--;
+            set_sprites_position();
+        }
+    }
+
+    void add_sprite(Sprite* sprite)
+    {
+        SpriteSelection sel(sprite, x + 10, y + sprites.size() * 37 + 10, width - 38, 28);
+
+        for (auto& s : sprites)
+            s.active = false;
+
+        sel.active = true;
+
+        sprites.push_back(sel);
+
+        end_sprite = min((int)sprites.size(), start_sprite + max_sprites_to_show);
+        set_sprites_position();
+
+        index_of_active = sprites.size() - 1;
+    }
+
+    void manage_event(SDL_Event& e)
+    {
+        for (int i = start_sprite; i < end_sprite; i++)
+        {
+            auto& it = sprites[i];
+            it.manage_event(e);
+
+            if (it.new_activate_action)
+            {
+                for (auto& other : sprites)
+                    other.active = false;
+
+                it.active = true;
+                it.new_activate_action = false;
+
+                index_of_active = i;
+
+                break;
+            }
+        }
+    }
+
+    void render(SDL_Renderer* renderer, TTF_Font* font)
+    {
+        rectangleRGBA(renderer, x, y, x + width, y + height, border_r, border_g, border_b, border_a);
+
+        for (int i = start_sprite; i < end_sprite; i++)
+        {
+            sprites[i].render(renderer, font);
+        }
+    }
 };
 
 #endif

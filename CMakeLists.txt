@@ -8,6 +8,8 @@ add_executable(Mini_Scratch main.cpp
         motion.h
         looks.h
         events.h
-        execute.h)
+        execute.h
+        variables.h
+        control.h)
 
 target_link_libraries(${PROJECT_NAME} -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer)
