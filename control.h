@@ -22,24 +22,24 @@ void handle_else_if(Sprite &s,int index,bool condition) {
         index++;
     }
 }
-void handle_repeat(Sprite &s,int index,int repeat) {
-
-    std::vector<Block> copy;
-    int init=index;
-
-
-    while(!(s.blocks.blocks[index].block_id.general_type==CONT&&s.blocks.blocks[index].block_id.control_mode==ENDREPEAT)&&index<s.blocks.blocks.size()) {
-        copy.pushback(s.blocks.blocks[index]);
-        index++;
-    }
-    int n=copy.size();
-
-    for(int i=1;i<repeat;i++)
-    {
-        copy.insert(copy.end(),copy.begin(),copy.end());
-
-    }
-    s.blocks.blocks.insert(init+n,copy.begin(),copy.end());
-}
+// void handle_repeat(Sprite &s,int index,int repeat) {
+//
+//     std::vector<Block> copy;
+//     int init=index;
+//
+//     while(!(s.blocks.blocks[index].block_id.general_type==CONT&&s.blocks.blocks[index].block_id.control_mode==ENDREPEAT)&&index<s.blocks.blocks.size()) {
+//         copy.push_back(s.blocks.blocks[index]);
+//         index++;
+//     }
+//     int n=copy.size();
+//
+//     for(int i=1;i<repeat;i++)
+//     {
+//         copy.insert(copy.end(),copy.begin(),copy.end());
+//
+//     }
+//
+//     s.blocks.blocks.insert(s.blocks.blocks.begin() + init + n ,copy);
+// }
 
 #endif

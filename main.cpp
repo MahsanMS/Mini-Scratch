@@ -1,14 +1,18 @@
 #include <bits/stdc++.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 #include <SDL2/SDL2_gfx.h>
 #include <SDL2/SDL_ttf.h>
 #include "UI.h"
 #include "events.h"
+#include "execute.h"
+#include "custom menu.h"
 
 using namespace std;
 
 int tab_page = 0;
 void go_to_code_tab() {tab_page = 0;}
+void go_to_custom_tab() {tab_page = 1;}
 
 OriginalBlocksManager all_original_managers[5];
 int motion_index = 0;
@@ -37,7 +41,6 @@ void add_operators_blocks(TTF_Font*);
 void go_up_original() {all_original_managers[original_manager_page].go_up();}
 void go_down_original() {all_original_managers[original_manager_page].go_down();}
 
-SpriteManager sprite_manager;
 Sprite sprites[50];
 
 int sprite_page = 0;
@@ -51,15 +54,50 @@ void go_down_sprite_manager() {sprite_manager.go_down();}
 void add_new_sprite()
 {
     int index = sprite_manager.sprites.size();
+    if (index == 50) return;
+
     sprites[index].name = "Sprite" + to_string(index);
     sprites[index].blocks = BlockManager(0.239 * DM.w, 0.053 * DM.h, 0.425 * DM.w, 0.83 * DM.h, ::count);
+
+    sprites[index].customs[0].texture = nullptr;
+    sprites[index].customs[0].name = "Custom0";
+    sprites[index].custom_manager = CustomManager(0.015 * DM.w, 0.053 * DM.h, 0.2 * DM.w, 0.83 * DM.h, 0.83 * DM.h / 69);
+    sprites[index].custom_manager.add_custom(&sprites[index].customs[0]);
+
     sprite_manager.add_sprite(&sprites[index]);
 
     while (sprite_manager.end_sprite < index)
         go_down_sprite_manager();
 
     go_down_sprite_manager();
+
+    change_sprite = true;
 }
+
+void go_up_custom_manager() {sprites[sprite_page].custom_manager.go_up();}
+void go_down_custom_manager() {sprites[sprite_page].custom_manager.go_down();}
+
+void add_new_custom()
+{
+    int index = sprites[sprite_page].custom_manager.customs.size();
+    if (index == 15) return;
+
+    sprites[sprite_page].customs[index].texture = nullptr;
+    sprites[sprite_page].customs[index].name = "Custom" + to_string(index);
+
+    sprites[sprite_page].custom_manager.add_custom(&sprites[sprite_page].customs[index]);
+
+    while (sprites[sprite_page].custom_manager.end_custom < index)
+        go_down_custom_manager();
+
+    go_down_custom_manager();
+    change_custom = true;
+}
+
+void show_sprite() {sprites[sprite_page].show = true;}
+void hide_sprite() {sprites[sprite_page].show = false;}
+
+void green_flag() {GreenFlag = true;}
 
 int main(int argc, char * argv[])
 {
@@ -68,6 +106,8 @@ int main(int argc, char * argv[])
     SDL_StartTextInput();
 
     SDL_GetCurrentDisplayMode(0, &DM);
+    int middle_x = 0.666 * DM.w + 0.305 * DM.w / 2;
+    int middle_y = 0.053 * DM.h + 0.4 * DM.h / 2;
 
     SDL_Window* window = SDL_CreateWindow("Mini Scratch!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         DM.w * 0.975, DM.h * 0.89, SDL_WINDOW_SHOWN);
@@ -86,8 +126,11 @@ int main(int argc, char * argv[])
 
     Button code_button(0.015 * DM.w, 0.01 * DM.h, 0.075 * DM.w, 0.04 * DM.h, 7);
     code_button.callback = &go_to_code_tab;
+    code_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\Code icon.png");
 
-    // custome tabs will be added later
+    Button custom_button(0.09 * DM.w, 0.01 * DM.h, 0.075 * DM.w, 0.04 * DM.h, 7);
+    custom_button.callback = &go_to_custom_tab;
+    custom_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\Customs icons.png");
 
     // motion button
     Button motion_code_button(0, 0.05 * DM.h * (motion_index + 1), 0.035 * DM.w, 0.05 * DM.h, 10);
@@ -95,6 +138,7 @@ int main(int argc, char * argv[])
     motion_code_button.set_hover_RGBA(127, 187, 227, 255);
     motion_code_button.set_active_RGBA(0, 80, 133, 255);
     motion_code_button.callback = &code_motion;
+    motion_code_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\Motion icon.png");
 
     // looks button
     Button looks_code_button(0, 0.05 * DM.h * (looks_index + 1), 0.035 * DM.w, 0.05 * DM.h, 10);
@@ -102,6 +146,7 @@ int main(int argc, char * argv[])
     looks_code_button.set_hover_RGBA(208, 143, 255, 255);
     looks_code_button.set_active_RGBA(71, 0, 122, 255);
     looks_code_button.callback = &code_looks;
+    looks_code_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\Looks icon.png");
 
     // events button
     Button events_code_button(0, 0.05 * DM.h * (events_index + 1), 0.035 * DM.w, 0.05 * DM.h, 10);
@@ -109,6 +154,7 @@ int main(int argc, char * argv[])
     events_code_button.set_hover_RGBA(255, 255, 115, 255);
     events_code_button.set_active_RGBA(128, 128, 0, 255);
     events_code_button.callback = &code_events;
+    events_code_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\Events icon.png");
 
     // control button
     Button control_code_button(0, 0.05 * DM.h * (control_index + 1), 0.035 * DM.w, 0.05 * DM.h, 10);
@@ -116,6 +162,7 @@ int main(int argc, char * argv[])
     control_code_button.set_hover_RGBA(255, 175, 71, 255);
     control_code_button.set_active_RGBA(150, 85, 0, 255);
     control_code_button.callback = &code_control;
+    control_code_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\Control icon.png");
 
     // operators button
     Button operator_code_button(0, 0.05 * DM.h * (operators_index + 1), 0.035 * DM.w, 0.05 * DM.h, 10);
@@ -123,10 +170,10 @@ int main(int argc, char * argv[])
     operator_code_button.set_hover_RGBA(59, 235, 79, 255);
     operator_code_button.set_active_RGBA(0, 77, 9, 255);
     operator_code_button.callback = &code_operators;
+    operator_code_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\Operators icon.png");
 
     ::count = DM.h * 0.83 / 35;
 
-    // OriginalBlocksManager original_blocks_manager(0.037 * DM.w, 0.053 * DM.h, 0.175 * DM.w, 0.83 * DM.h, count);
     add_motion_blocks(font);
     add_looks_blocks(font);
     add_events_blocks(font);
@@ -136,35 +183,128 @@ int main(int argc, char * argv[])
     // go up and down buttons
     Button go_up_original_button(0.218 * DM.w, 0.06 * DM.h, 18, 18, 10);
     go_up_original_button.callback = &go_up_original;
+    go_up_original_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\up icon.png");
     Button go_down_original_button(0.218 * DM.w, 0.85 * DM.h, 18, 18, 10);
     go_down_original_button.callback = &go_down_original;
+    go_down_original_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\down icon.png");
 
     Button go_up_block_manager_button(0.64375 * DM.w, 0.06 * DM.h, 18, 18, 10);
     go_up_block_manager_button.callback = &go_up_block_manager;
+    go_up_block_manager_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\up icon.png");
     Button go_down_block_manager_button(0.64375 * DM.w, 0.85 * DM.h, 18, 18, 10);
     go_down_block_manager_button.callback = &go_down_block_manager;
+    go_down_block_manager_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\down icon.png");
 
     Button go_up_sprite_button(0.954 * DM.w, 0.64 * DM.h, 15, 15, 9);
     go_up_sprite_button.callback = &go_up_sprite_manager;
+    go_up_sprite_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\up icon.png");
     Button go_down_sprite_button(0.954 * DM.w, 0.847 * DM.h, 15, 15, 9);
     go_down_sprite_button.callback = &go_down_sprite_manager;
+    go_down_sprite_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\down icon.png");
 
+    Button go_up_custom_button(0.199 * DM.w, 0.065 * DM.h, 15, 15, 9);
+    go_up_custom_button.callback = &go_up_custom_manager;
+    go_up_custom_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\up icon.png");
+    Button go_down_custom_button(0.199 * DM.w, 0.85 * DM.h, 15, 15, 9);
+    go_down_custom_button.callback = &go_down_custom_manager;
+    go_down_custom_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\down icon.png");
+
+    // add buttons
     Button add_sprite_button(0.954 * DM.w, 0.7435 * DM.h, 15, 15, 0);
     add_sprite_button.callback = &add_new_sprite;
     add_sprite_button.set_button_RGBA(0, 255, 0, 255);
     add_sprite_button.set_hover_RGBA(0, 128, 0, 255);
     add_sprite_button.set_active_RGBA(0, 61, 158, 255);
+    add_sprite_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\plus icon.png");
 
-    // BlockManager manager(0.239 * DM.w, 0.053 * DM.h, 0.425 * DM.w, 0.83 * DM.h, ::count); // will change to Sprite's manager later
+    Button add_custom_button(0.199 * DM.w, 0.4 * DM.h, 15, 15, 0);
+    add_custom_button.callback = &add_new_custom;
+    add_custom_button.set_button_RGBA(0, 0, 255, 255);
+    add_custom_button.set_hover_RGBA(0, 0, 128, 255);
+    add_custom_button.set_active_RGBA(0, 158, 61, 255);
+    add_custom_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\plus icon.png");
 
     sprite_manager = SpriteManager(0.666 * DM.w, 0.625 * DM.h, 0.305 * DM.w, 0.2575 * DM.h, 0.2575 * DM.h / 37);
 
+    SDL_Texture* backdrop = IMG_LoadTexture(renderer, "assests\\pics\\Backdrops\\Backdrop0.png");
+    SDL_Texture* custom0 = IMG_LoadTexture(renderer, "assests\\pics\\Sprite0\\custom0.png");
+    SDL_Texture* custom1 = IMG_LoadTexture(renderer, "assests\\pics\\Sprite0\\custom1.png");
+
+    Button green_flag_button(0.666 * DM.w, 0.01 * DM.h, 0.025 * DM.w, 0.04 * DM.h, 7);
+    green_flag_button.set_button_RGBA(131, 227, 20, 255);
+    green_flag_button.set_hover_RGBA(197, 240, 149, 255);
+    green_flag_button.set_active_RGBA(83, 135, 23, 255);
+    green_flag_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\green flag.png");
+    green_flag_button.callback = &green_flag;
+
     sprites[0].name = "Sprite0";
     sprites[0].blocks = BlockManager(0.239 * DM.w, 0.053 * DM.h, 0.425 * DM.w, 0.83 * DM.h, ::count);
+
+    sprites[0].customs[0].texture = custom0;
+    sprites[0].customs[0].name = "Custom0";
+    sprites[0].customs[1].texture = custom1;
+    sprites[0].customs[1].name = "Custom1";
+
+    sprites[0].custom_manager = CustomManager(0.015 * DM.w, 0.053 * DM.h, 0.2 * DM.w, 0.83 * DM.h, 0.83 * DM.h / 69);
+
+    sprites[0].custom_manager.add_custom(&sprites[0].customs[0]);
+    sprites[0].custom_manager.add_custom(&sprites[0].customs[1]);
+
+    sprites[0].state.x = 0;
+    sprites[0].state.y = 0;
+    sprites[0].state.w = 100;
+    sprites[0].state.h = 100;
+
+    sprites[0].rect = {(int)sprites[0].state.x + middle_x,-(int)sprites[0].state.y + middle_y,100,100};
+    sprites[0].scaled_w = sprites[0].state.w * (sprites[0].state.size/100.0f);
+    sprites[0].scaled_h = sprites[0].state.h * (sprites[0].state.size/100.0f);
+
     sprite_manager.add_sprite(&sprites[0]);
+
+    // sprite setting
+    InputBox sprite_name;
+    sprite_name.x = 0.68 * DM.w; sprite_name.y = 0.48 * DM.h;
+
+    InputBox sprite_x;
+    sprite_x.x = 0.8 * DM.w; sprite_x.y = 0.48 * DM.h;
+
+    InputBox sprite_y;
+    sprite_y.x = 0.9 * DM.w; sprite_y.y = 0.48 * DM.h;
+
+    InputBox sprite_direction;
+    sprite_direction.x = 0.68 * DM.w; sprite_direction.y = 0.52 * DM.h;
+
+    InputBox sprite_size;
+    sprite_size.x = 0.8 * DM.w; sprite_size.y = 0.52 * DM.h;
+
+    Button show_button(0.9 * DM.w, 0.52 * DM.h, 45, 45, 5);
+    show_button.set_button_RGBA(91, 245, 44, 255);
+    show_button.set_hover_RGBA(160, 252, 131, 255);
+    show_button.set_active_RGBA(29, 120, 0, 255);
+    show_button.callback = &hide_sprite;
+    show_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\active eye icon.png");
+
+    Button hide_button(0.9 * DM.w, 0.52 * DM.h, 45, 45, 5);
+    hide_button.set_button_RGBA(222, 49, 49, 255);
+    hide_button.set_hover_RGBA(232, 95, 95, 255);
+    hide_button.set_active_RGBA(135, 0, 0, 255);
+    hide_button.callback = &show_sprite;
+    hide_button.icon = IMG_LoadTexture(renderer, "assests\\pics\\icons\\inactive eye icon.png");
+
+    InputBox custom_name;
+    custom_name.x = 0.23 * DM.w; custom_name.y = 0.08 * DM.h;
 
     while (running)
     {
+        Space = false; Up = false; Down = false; Right = false; Left = false;
+        sprite_name.line.text = sprites[sprite_page].name;
+        if (!sprite_x.active) sprite_x.line.text = to_string(sprites[sprite_page].state.x);
+        if (!sprite_y.active) sprite_y.line.text = to_string(sprites[sprite_page].state.y);
+        if (!sprite_direction.active) sprite_direction.line.text = to_string(sprites[sprite_page].state.direction);
+        if (!sprite_size.active) sprite_size.line.text = to_string(sprites[sprite_page].state.size);
+
+        custom_name.line.text = sprites[sprite_page].customs[sprites[sprite_page].current_custom].name;
+
         while (SDL_PollEvent(&event))
         {
             if (event.type == SDL_QUIT)
@@ -187,25 +327,40 @@ int main(int argc, char * argv[])
                 // green flag...
             }
 
-            // managers
-            all_original_managers[original_manager_page].manage_event(event, sprites[sprite_page].blocks, font);
-            sprites[sprite_page].blocks.manage_event(event);
-
             // buttons
             code_button.manage_event(event);
+            custom_button.manage_event(event);
+            green_flag_button.manage_event(event);
 
-            // code buttons
-            motion_code_button.manage_event(event);
-            looks_code_button.manage_event(event);
-            events_code_button.manage_event(event);
-            control_code_button.manage_event(event);
-            operator_code_button.manage_event(event);
+            if (tab_page == 0)
+            {
+                // code managers
+                all_original_managers[original_manager_page].manage_event(event, sprites[sprite_page].blocks, font);
+                sprites[sprite_page].blocks.manage_event(event);
+                // code buttons
+                motion_code_button.manage_event(event);
+                looks_code_button.manage_event(event);
+                events_code_button.manage_event(event);
+                control_code_button.manage_event(event);
+                operator_code_button.manage_event(event);
 
-            go_up_original_button.manage_event(event);
-            go_down_original_button.manage_event(event);
+                go_up_original_button.manage_event(event);
+                go_down_original_button.manage_event(event);
 
-            go_up_block_manager_button.manage_event(event);
-            go_down_block_manager_button.manage_event(event);
+                go_up_block_manager_button.manage_event(event);
+                go_down_block_manager_button.manage_event(event);
+            }
+
+            else if (tab_page == 1)
+            {
+                sprites[sprite_page].custom_manager.manage_event(event);
+
+                go_up_custom_button.manage_event(event);
+                go_down_custom_button.manage_event(event);
+                add_custom_button.manage_event(event);
+
+                custom_name.manage_event(event);
+            }
 
             go_up_sprite_button.manage_event(event);
             go_down_sprite_button.manage_event(event);
@@ -215,30 +370,101 @@ int main(int argc, char * argv[])
             // sprites
             sprite_manager.manage_event(event);
             sprite_page = sprite_manager.index_of_active;
+            sprites[sprite_page].current_custom = sprites[sprite_page].custom_manager.index_of_active;
+
+            //executeProgram(sprites, event);
+
+            // sprite setting
+            sprite_name.manage_event(event);
+            sprite_x.manage_event(event);
+            sprite_y.manage_event(event);
+            sprite_direction.manage_event(event);
+            sprite_size.manage_event(event);
+
+            if (sprites[sprite_page].show) show_button.manage_event(event);
+            else hide_button.manage_event(event);
         }
+
+        if (!change_sprite)
+        {
+            sprites[sprite_page].name = sprite_name.line.text;
+            if (!sprite_x.active)
+            {
+                sprites[sprite_page].state.x = !sprite_x.line.text.empty() ? stoi(sprite_x.line.text) : 0;
+                if (sprites[sprite_page].state.x > 0.1525 * DM.w)
+                    sprites[sprite_page].state.x = 209;
+                if (sprites[sprite_page].state.x < 0.1525 * DM.w * -1)
+                    sprites[sprite_page].state.x = -209;
+            }
+            if (!sprite_y.active)
+            {
+                sprites[sprite_page].state.y = !sprite_y.line.text.empty() ? stoi(sprite_y.line.text) : 0;
+                if (sprites[sprite_page].state.y > 0.2 * DM.h)
+                    sprites[sprite_page].state.y = 0.2 * DM.h;
+                if (sprites[sprite_page].state.y < 0.2 * DM.h * -1)
+                    sprites[sprite_page].state.y = 0.2 * DM.h * -1;
+            }
+            if (!sprite_direction.active)
+            {
+                sprites[sprite_page].state.direction = !sprite_direction.line.text.empty() ? stoi(sprite_direction.line.text) : 0;
+                if (sprites[sprite_page].state.direction > 360)
+                    sprites[sprite_page].state.direction %= 360;
+                if (sprites[sprite_page].state.direction < -360)
+                    sprites[sprite_page].state.direction %= -360;
+            }
+            if (!sprite_size.active)
+            {
+                sprites[sprite_page].state.size = !sprite_size.line.text.empty() ? stoi(sprite_size.line.text) : 0;
+            }
+        }
+
+        else change_sprite = false;
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        // managers
-        all_original_managers[original_manager_page].render(renderer, font);
-        sprites[sprite_page].blocks.render(renderer, font);
-
         //buttons
         code_button.render(renderer);
+        custom_button.render(renderer);
 
-        //code buttons
-        motion_code_button.render(renderer);
-        looks_code_button.render(renderer);
-        events_code_button.render(renderer);
-        control_code_button.render(renderer);
-        operator_code_button.render(renderer);
+        if (tab_page == 0)
+        {
+            // code managers
+            all_original_managers[original_manager_page].render(renderer, font);
+            sprites[sprite_page].blocks.render(renderer, font);
 
-        go_up_original_button.render(renderer);
-        go_down_original_button.render(renderer);
+            // code buttons
+            motion_code_button.render(renderer);
+            looks_code_button.render(renderer);
+            events_code_button.render(renderer);
+            control_code_button.render(renderer);
+            operator_code_button.render(renderer);
 
-        go_up_block_manager_button.render(renderer);
-        go_down_block_manager_button.render(renderer);
+            go_up_original_button.render(renderer);
+            go_down_original_button.render(renderer);
+
+            go_up_block_manager_button.render(renderer);
+            go_down_block_manager_button.render(renderer);
+        }
+
+        else if (tab_page == 1)
+        {
+            sprites[sprite_page].custom_manager.render(renderer, font);
+
+            go_up_custom_button.render(renderer);
+            go_down_custom_button.render(renderer);
+            add_custom_button.render(renderer);
+
+            // render_menu(sprites[sprite_page], renderer, custom_menu);
+            cout << sprites[sprite_page].current_custom << change_custom << endl;
+            if (!change_custom)
+            {
+                sprites[sprite_page].customs[sprites[sprite_page].current_custom].name = custom_name.line.text;
+            }
+            else change_custom = false;
+
+            custom_name.render(renderer, font);
+        }
 
         go_up_sprite_button.render(renderer);
         go_down_sprite_button.render(renderer);
@@ -248,10 +474,33 @@ int main(int argc, char * argv[])
         // sprites
         sprite_manager.render(renderer, font);
 
+        SDL_Rect backdrop_rect;
+        backdrop_rect.x = 0.666 * DM.w;
+        backdrop_rect.y = 0.053 * DM.h;
+        backdrop_rect.w = 0.305 * DM.w;
+        backdrop_rect.h = 0.4 * DM.h;
+
+        // sprite setting
+        sprite_name.render(renderer, font);
+        sprite_x.render(renderer, font);
+        sprite_y.render(renderer, font);
+        sprite_direction.render(renderer, font);
+        sprite_size.render(renderer, font);
+
+        if (sprites[sprite_page].show) show_button.render(renderer);
+        else hide_button.render(renderer);
+
+        // stage
+        SDL_RenderCopy(renderer, backdrop, nullptr, &backdrop_rect);
+        green_flag_button.render(renderer);
+        for (int i = 0; i < sprite_manager.sprites.size(); i++)
+            if (sprites[i].show) render_sprite(renderer, sprites[i]);
+
         SDL_RenderPresent(renderer);
         SDL_Delay(16);
     }
 
+    // destroy all textures
     TTF_Quit();
     SDL_StopTextInput();
     SDL_DestroyRenderer(renderer);

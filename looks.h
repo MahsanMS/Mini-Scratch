@@ -4,9 +4,7 @@
 #include "UI.h"
 
 void switch_to_next_costum(Sprite &sprite) {
-    if (!sprite.customs.empty()) {
-        sprite.current_custom = (sprite.current_custom + 1) % sprite.customs.size();
-    }
+    sprite.current_custom = (sprite.current_custom + 1) % sprite.custom_manager.customs.size();
 }
 
 void next_backdrop(Stage & stage) {
@@ -16,9 +14,7 @@ void next_backdrop(Stage & stage) {
 }
 
 void switch_to_custom(Sprite &sprite,int indx) {
-    if (!sprite.customs.empty()) {
-        sprite.current_custom=indx;
-    }
+    sprite.current_custom=indx;
 }
 
 void switch_to_backdrop(Stage & stage,int indx) {
@@ -54,7 +50,7 @@ void update_sprite(Sprite &sprite) {
         sprite.think_time--;
 }
 
-void change_size_by(Sprite &sprite,float val) {
+void change_size_to(Sprite &sprite,float val) {
     sprite.state.size+=val;
     if (sprite.state.size<1) {
         sprite.state.size=1;

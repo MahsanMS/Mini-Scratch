@@ -4,8 +4,12 @@
 #include "UI.h"
 #include "motion.h"
 #include "looks.h"
+#include "variables.h"
+#include "control.h"
 
-void executeBlock(Sprite &sprite,Block & block,Stage &stage) {
+SpriteManager sprite_manager;
+
+void executeBlock(Sprite &sprite,Block & block) {
     switch (block.block_id.general_type) {
         case MOTION:{
             switch (block.block_id.id_number) {
@@ -82,10 +86,10 @@ void executeBlock(Sprite &sprite,Block & block,Stage &stage) {
                     break;
                 }
 
-                case 1: {
-                    next_backdrop(stage);
-                    break;
-                }
+                // case 1: {
+                //     next_backdrop(stage);
+                //     break;
+                // }
 
                 case 2: {
                     int indx=std::stoi(block.inputs[0].line.text);
@@ -94,11 +98,11 @@ void executeBlock(Sprite &sprite,Block & block,Stage &stage) {
 
                 }
 
-                case 3: {
-                    int indx=std::stoi(block.inputs[0].line.text);
-                    switch_to_backdrop(stage,indx);
-                    break;
-                }
+                // case 3: {
+                //     int indx=std::stoi(block.inputs[0].line.text);
+                //     switch_to_backdrop(stage,indx);
+                //     break;
+                // }
 
                 case 4: {
                     std::string text=block.inputs[0].line.text;
@@ -129,7 +133,7 @@ void executeBlock(Sprite &sprite,Block & block,Stage &stage) {
                 }
                 case 8: {
                     float val=std::stof(block.inputs[0].line.text);
-                    change_size_by(sprite, val);
+                    change_size_to(sprite, val);
                     break;
                 }
                 case 9: {
@@ -139,10 +143,6 @@ void executeBlock(Sprite &sprite,Block & block,Stage &stage) {
                 }
             }
           break;
-        }
-        case SOUND: {
-
-            break;
         }
             //isrunng changes
         case EVENT: {
@@ -235,9 +235,6 @@ void executeBlock(Sprite &sprite,Block & block,Stage &stage) {
         //     break;
         // }
             //remains
-        case SENSE: {
-            break;
-        }
             //remains->operators raw file
         // case OP: {
         //     switch (block.block_id.id_number) {
@@ -410,15 +407,11 @@ void executeBlock(Sprite &sprite,Block & block,Stage &stage) {
             break;
         }
             //remains
-        case FUNC: {
-
-
-            break;
-        }
     }
 }
-void exec_sprites(Sprite sp[50],Stage& stage,SDL_Event& e) {
-    for (auto &s : sp) {
+void exec_sprites(Sprite sp[50],SDL_Event& e) {
+    for (int i = 0; i < sprite_manager.sprites.size(); i++){
+        auto& s = sp[i];
         s.manage_event(e);
         if (!s.is_running) continue;
         if (s.current_block>=s.blocks.blocks.size()) {
@@ -428,7 +421,10 @@ void exec_sprites(Sprite sp[50],Stage& stage,SDL_Event& e) {
         if (!b.parent_id) continue;
 
         if (s.blocks.blocks[s.current_block].parent_id)
-        executeBlock(s,b,stage);
+        {
+            executeBlock(s,b);
+        }
+
 //if
         if (s.blocks.blocks[s.current_block].block_id.general_type==CONT&&s.blocks.blocks[s.current_block].block_id.control_mode==IF) {
             int condition =std::stoi(s.blocks.blocks[s.current_block].inputs[0].line.text);
@@ -436,51 +432,45 @@ void exec_sprites(Sprite sp[50],Stage& stage,SDL_Event& e) {
                  s.current_block++;
         }
 //if-else
-         if (s.blocks.blocks[s.current_block].block_id.general_type==CONT&&s.blocks.blocks[s.current_block].block_id.control_mode==ELSEIF) {
+         if (s.blocks.blocks[s.current_block].block_id.general_type==CONT&&s.blocks.blocks[s.current_block].block_id.control_mode==IFELSE) {
             int condition =std::stoi(s.blocks.blocks[s.current_block].inputs[0].line.text);
             handle_else_if(s,s.current_block++,condition);
              s.current_block++;
 
         }
       //repeat
-   if (s.blocks.blocks[s.current_block].block_id.general_type==CONT&&s.blocks.blocks[s.current_block].block_id.control_mode==REPEAT) {
-            int repeat =std::stoi(s.blocks.blocks[s.current_block].inputs[0].line.text);
-             handle_repeat(s,s.current_block++, repeat);
-             s.current_block++;
-
-        }
+   // if (s.blocks.blocks[s.current_block].block_id.general_type==CONT&&s.blocks.blocks[s.current_block].block_id.control_mode==REPEAT) {
+   //          int repeat =std::stoi(s.blocks.blocks[s.current_block].inputs[0].line.text);
+   //           handle_repeat(s,s.current_block++, repeat);
+   //           s.current_block++;
+   //
+   //      }
         s.current_block++;
 
     }
 }
 
-void executeProgram(Sprite sp[50],Stage& stage,SDL_Renderer* renderer,SDL_Event& e) {
-bool running =false;
-    exec_sprites(sp, stage,e);
+void executeProgram(Sprite sp[50],SDL_Event& e) {
+    bool running =false;
+    exec_sprites(sp,e);
 
     if (GreenFlag||Space||Up||Right||Down||Left) running=true;
     while (running) {
         bool runfalse=true;
-        for (auto s : sp) {
+        for (int i = 0; i < sprite_manager.sprites.size(); i++){
+            auto& s = sp[i];
+            cout << i << ' ' << s.is_running << endl;
             if (s.is_running==0)
-                runfalse=false;
+            {
+                runfalse = false;
+            }
         }
 
+        exec_sprites(sp,e);
 
-        exec_sprites(sp, stage,e);
-
-
-        for (auto s : sp) {
-
-            render_sprite(renderer,s);
-            update_sprite(s);
-        }
-
-
-        if (runfalse==true)
+        if (runfalse==false)
             running=false;
     }
-
 }
 
 #endif

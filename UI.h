@@ -6,6 +6,9 @@ using namespace std;
 SDL_DisplayMode DM;
 int count;
 
+bool change_sprite = false;
+bool change_custom = false;
+
 struct TextItem {
     string text;
     int w, h;
@@ -30,7 +33,7 @@ struct InputBox
 
     InputBox()
     {
-        w = 10, h = 27;
+        w = 10, h = 18;
     }
 
     void set_box_RGBA(Uint8 r, Uint8 g, Uint8 b, Uint8 a)
@@ -149,6 +152,8 @@ struct Button
     Uint8 active_r = 64, active_g = 64, active_b = 64, active_a = 255;
     Uint8 hover_r = 128, hover_g = 128, hover_b = 128, hover_a = 255;
 
+    SDL_Texture* icon = nullptr;
+
     Button(Sint16 X, Sint16 Y, Sint16 W, Sint16 H, Sint16 rad)
     {
         x = X; y = Y; w = W; h = H; radius = rad;
@@ -202,6 +207,12 @@ struct Button
             roundedBoxRGBA(renderer, x, y, x + w, y + h, radius, hover_r, hover_g, hover_b, hover_a);
         else
             roundedBoxRGBA(renderer, x, y, x + w, y + h, radius, button_r, button_g, button_b, button_a);
+
+        if (icon)
+        {
+            SDL_Rect rect = {x, y, w, h};
+            SDL_RenderCopy(renderer, icon, nullptr, &rect);
+        }
     }
 };
 
@@ -211,7 +222,7 @@ enum general_type {
 
 enum control_blocks
 {
-    IF, ENDIF, ELSE, ENDELSE, REPEAT, ENDREAPET
+    IF, ENDIF, IFELSE, ELSE, ENDELSE, REPEAT, ENDREPEAT
 };
 
 struct id {
@@ -502,6 +513,7 @@ struct BlockManager
                             start_if.y = y + blocks.size() * 35 + 7;
 
                             start_if.block_id.control_mode = IF;
+                            start_if.add_input();
                             blocks.push_back(start_if);
 
                             end_if.add_text("endif", font);
@@ -535,7 +547,8 @@ struct BlockManager
                             start_if.x = x + 10;
                             start_if.y = y + blocks.size() * 35 + 7;
                             start_if.add_text("if", font);
-                            start_if.block_id.control_mode = IF;
+                            start_if.block_id.control_mode = IFELSE;
+                            start_if.add_input();
                             blocks.push_back(start_if);
 
                             start_else.x = x + 10;
@@ -576,7 +589,7 @@ struct BlockManager
 
                             end_repeat.block_id.general_type = CONT;
                             end_repeat.parent_id = original_block.parent_id;
-                            end_repeat.block_id.control_mode = ENDREAPET;
+                            end_repeat.block_id.control_mode = ENDREPEAT;
                             blocks.push_back(end_repeat);
 
                             break;
@@ -736,16 +749,16 @@ struct OriginalBlocksManager
 };
 
 struct sprite_state {
-    float x,y;
+    int x,y;
     float w,h;
-    float direction;
+    int direction;
     float minX, maxX, minY, maxY;
-    float size;
+    int size;
     bool visible;
     sprite_state() {
         x = 0.0f;
         y = 0.0f;
-        direction = 90.0f;      // Facing right
+        direction = 0.0f;      // Facing right
         visible = true;
         size=100.0f;
 
@@ -763,11 +776,203 @@ struct Custom {
     SDL_Texture* canvas;
 };
 
+struct CustomSelection
+{
+    Custom* custom;
+    bool active = false;
+    bool new_activate_action = false;
+
+    Button select_button;
+
+    int thumb_size = 48;
+    int item_height = 64;
+
+    CustomSelection(Custom* cus, Sint16 x, Sint16 y, Sint16 w, Sint16 h)
+        : custom(cus), select_button(x, y, w, h, 6)
+    {
+        select_button.callback = [&]()
+        {
+            active = true;
+            new_activate_action = true;
+        };
+    }
+
+    bool manage_event(SDL_Event& e)
+    {
+        new_activate_action = select_button.manage_event(e);
+        if (new_activate_action)
+            change_custom = true;
+        return new_activate_action;
+    }
+
+    void render(SDL_Renderer* renderer, TTF_Font* font)
+    {
+        if (!active)
+        {
+            select_button.set_button_RGBA(255, 255, 255, 255);
+            select_button.set_hover_RGBA(128, 128, 128, 255);
+            select_button.set_active_RGBA(64, 64, 64, 255);
+        }
+        else
+        {
+            select_button.set_button_RGBA(120, 200, 120, 255);
+            select_button.set_hover_RGBA(160, 220, 160, 255);
+            select_button.set_active_RGBA(60, 160, 60, 255);
+        }
+
+        select_button.render(renderer);
+
+        if (!custom) return;
+
+        // thumbnail
+        SDL_Texture* tex = custom->canvas ? custom->canvas : custom->texture;
+        if (tex)
+        {
+            SDL_Rect thumb;
+            thumb.x = select_button.x + 6;
+            thumb.y = select_button.y + (select_button.h - thumb_size) / 2;
+            thumb.w = thumb_size;
+            thumb.h = thumb_size;
+
+            SDL_RenderCopy(renderer, tex, nullptr, &thumb);
+        }
+
+        // name
+        SDL_Color color = {0, 0, 0, 255};
+
+        SDL_Surface* s = TTF_RenderUTF8_Blended(font, custom -> name.c_str(), color);
+        if (!s) return;
+
+        SDL_Texture* name_tex = SDL_CreateTextureFromSurface(renderer, s);
+
+        SDL_Rect name_dst;
+        name_dst.x = select_button.x + thumb_size + 14;
+        name_dst.y = select_button.y + (select_button.h - s -> h) / 2;
+        name_dst.w = s -> w;
+        name_dst.h = s -> h;
+
+        SDL_RenderCopy(renderer, name_tex, nullptr, &name_dst);
+
+        SDL_FreeSurface(s);
+        SDL_DestroyTexture(name_tex);
+    }
+};
+
+struct CustomManager
+{
+    Sint16 x, y;
+    int width, height;
+
+    int max_customs_to_show;
+    int start_custom = 0;
+    int end_custom = 1;
+
+    int index_of_active = 0;
+
+    int item_height = 62;
+    int gap = 7;
+
+    vector<CustomSelection> customs;
+
+    Uint8 border_r = 255, border_g = 255, border_b = 255, border_a = 255;
+
+    CustomManager() {}
+
+    CustomManager(Sint16 _x, Sint16 _y, int w, int h, int max_show)
+    {
+        x = _x;
+        y = _y;
+        width = w;
+        height = h;
+        max_customs_to_show = max_show;
+    }
+
+    void set_customs_position()
+    {
+        for (int i = start_custom; i < end_custom; i++)
+        {
+            customs[i].select_button.x = x + 10;
+            customs[i].select_button.y = y + (i - start_custom) * (item_height + gap) + 10;
+            customs[i].select_button.h = item_height;
+            customs[i].select_button.w = width - 38;
+        }
+    }
+
+    void go_down()
+    {
+        if (end_custom < customs.size())
+        {
+            start_custom++;
+            end_custom++;
+            set_customs_position();
+        }
+    }
+
+    void go_up()
+    {
+        if (start_custom > 0)
+        {
+            start_custom--;
+            end_custom--;
+            set_customs_position();
+        }
+    }
+
+    void add_custom(Custom* custom)
+    {
+        CustomSelection sel(custom, x + 10, y + customs.size() * (item_height + gap) + 10,
+                            width - 38, item_height);
+
+        for (auto& c : customs)
+            c.active = false;
+
+        sel.active = true;
+
+        customs.push_back(sel);
+
+        end_custom = min((int)customs.size(), start_custom + max_customs_to_show);
+        set_customs_position();
+
+        index_of_active = customs.size() - 1;
+    }
+
+    void manage_event(SDL_Event& e)
+    {
+        for (int i = start_custom; i < end_custom; i++)
+        {
+            auto& it = customs[i];
+            it.manage_event(e);
+
+            if (it.new_activate_action)
+            {
+                for (auto& other : customs)
+                    other.active = false;
+
+                it.active = true;
+                it.new_activate_action = false;
+
+                index_of_active = i;
+                break;
+            }
+        }
+    }
+
+    void render(SDL_Renderer* renderer, TTF_Font* font)
+    {
+        rectangleRGBA(renderer, x, y, x + width, y + height,
+                      border_r, border_g, border_b, border_a);
+
+        for (int i = start_custom; i < end_custom; i++)
+        {
+            customs[i].render(renderer, font);
+        }
+    }
+};
+
 struct BackDrop {
     string name;
     float width,height;
     SDL_Texture* texture;
-
 };
 
 struct Stage {
@@ -778,16 +983,16 @@ struct Stage {
 struct Sprite {
     std::string name;
     sprite_state state;
-    std::unordered_map<string,float> variables;
+    std::unordered_map<string,float> var;
 
     BlockManager blocks;
     int current_block;
     bool is_running = false;
-    std::vector<Custom> customs;
-    int current_custom;
-    int scaled_w=state.w*(state.size/100.0f);
-    int scaled_h=state.h*(state.size/100.0f);
-    SDL_Rect rect={(int)state.x,(int)state.y,scaled_w,scaled_h};
+    Custom customs[15];
+    int current_custom = 0;
+    int scaled_w = 0;
+    int scaled_h = 0;
+    SDL_Rect rect;
     std::string saytext;
     int say_time=0;
     std::string thinktext;
@@ -797,11 +1002,14 @@ struct Sprite {
     int offset_x=0;
     int offset_y=0;
 
+    bool show = true;
+
+    CustomManager custom_manager;
+
     Sprite() : blocks(0.239 * DM.w, 0.053 * DM.h, 0.425 * DM.w, 0.83 * DM.h, ::count)
     {}
 
     void manage_event(SDL_Event& e) {
-
         if (e.type == SDL_MOUSEBUTTONDOWN) {
             int mx = e.button.x;
             int my = e.button.y;
@@ -818,7 +1026,7 @@ struct Sprite {
         }
 
         if (e.type == SDL_MOUSEBUTTONUP && dragging) {
-            dragging =false;
+            dragging = false;
         }
 
         if (e.type == SDL_MOUSEMOTION && dragging)
@@ -833,19 +1041,21 @@ void render_speech(SDL_Renderer* renderer, Sprite& sprite) {
     //render bubble
     //render say text
 }
+
 void render_think(SDL_Renderer* renderer, Sprite& sprite) {
     //render bubble
     //render say text
 }
+
 void render_sprite(SDL_Renderer* renderer, Sprite& sprite)
 {
     SDL_Point center;
-    center.x = sprite.rect.w/2;
-    center.y = sprite.rect.h/2;
+    center.x = sprite.state.w/2;
+    center.y = sprite.state.h/2;
     SDL_Texture* texture=sprite.customs[sprite.current_custom].texture;
     SDL_Texture* canva=sprite.customs[sprite.current_custom].canvas;
 
-    SDL_Rect rect=sprite.rect;
+    SDL_Rect rect = {(int)(sprite.state.x * sprite.state.size / 100 - center.x * sprite.state.size / 100 + 0.8185 * DM.w), (int)(-sprite.state.y * sprite.state.size / 100 - center.y * sprite.state.size / 100 + 0.253 * DM.h), (int)sprite.state.w * sprite.state.size / 100, (int)sprite.state.h * sprite.state.size / 100};
     if (sprite.say_time !=0)
     {
         //render_speech(SDL_Renderer* renderer, Sprite& sprite)
@@ -855,6 +1065,7 @@ void render_sprite(SDL_Renderer* renderer, Sprite& sprite)
     {
         // render_think(SDL_Renderer* renderer, Sprite& sprite)
     }
+
     SDL_RenderCopyEx(renderer,texture,NULL,&rect,sprite.state.direction,&center,SDL_FLIP_NONE);
     SDL_RenderCopyEx(renderer,canva,NULL,&rect,sprite.state.direction,&center,SDL_FLIP_NONE);
     SDL_RenderPresent(renderer);
@@ -881,6 +1092,10 @@ struct SpriteSelection
     bool manage_event(SDL_Event& e)
     {
         new_activate_action = select_button.manage_event(e);
+        if (new_activate_action)
+        {
+            change_sprite = true;
+        }
         return new_activate_action;
     }
 

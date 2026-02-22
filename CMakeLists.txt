@@ -10,6 +10,9 @@ add_executable(Mini_Scratch main.cpp
         events.h
         execute.h
         variables.h
-        control.h)
+        control.h
+        "custom menu.h"
+        operators.h
+)
 
 target_link_libraries(${PROJECT_NAME} -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer)
