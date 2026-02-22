@@ -1037,16 +1037,6 @@ struct Sprite {
     }
 };
 
-void render_speech(SDL_Renderer* renderer, Sprite& sprite) {
-    //render bubble
-    //render say text
-}
-
-void render_think(SDL_Renderer* renderer, Sprite& sprite) {
-    //render bubble
-    //render say text
-}
-
 void render_sprite(SDL_Renderer* renderer, Sprite& sprite)
 {
     SDL_Point center;
@@ -1056,15 +1046,6 @@ void render_sprite(SDL_Renderer* renderer, Sprite& sprite)
     SDL_Texture* canva=sprite.customs[sprite.current_custom].canvas;
 
     SDL_Rect rect = {(int)(sprite.state.x * sprite.state.size / 100 - center.x * sprite.state.size / 100 + 0.8185 * DM.w), (int)(-sprite.state.y * sprite.state.size / 100 - center.y * sprite.state.size / 100 + 0.253 * DM.h), (int)sprite.state.w * sprite.state.size / 100, (int)sprite.state.h * sprite.state.size / 100};
-    if (sprite.say_time !=0)
-    {
-        //render_speech(SDL_Renderer* renderer, Sprite& sprite)
-    }
-
-    if (sprite.say_time !=0)
-    {
-        // render_think(SDL_Renderer* renderer, Sprite& sprite)
-    }
 
     SDL_RenderCopyEx(renderer,texture,NULL,&rect,sprite.state.direction,&center,SDL_FLIP_NONE);
     SDL_RenderCopyEx(renderer,canva,NULL,&rect,sprite.state.direction,&center,SDL_FLIP_NONE);

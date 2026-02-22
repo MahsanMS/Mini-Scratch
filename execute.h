@@ -191,51 +191,6 @@ void executeBlock(Sprite &sprite,Block & block) {
             }
             break;
         }
-            //in the whole block manager
-            //if -
-        // case CONT: {
-        //
-        //     switch (block.block_id.id_number) {
-        //
-        //         case 0: {
-        //
-        //
-        //             break;
-        //         }
-        //
-        //         case 1: {
-        //
-        //             break;
-        //         }
-        //
-        //         case 2: {
-        //
-        //             break;
-        //
-        //         }
-        //
-        //         case 3: {
-        //
-        //             break;
-        //         }
-        //
-        //         case 4: {
-        //
-        //             break;
-        //
-        //         }
-        //
-        //         case 5: {
-        //
-        //
-        //             break;
-        //         }
-        //
-        //     }
-        //     break;
-        // }
-            //remains
-            //remains->operators raw file
         // case OP: {
         //     switch (block.block_id.id_number) {
         //
@@ -401,12 +356,9 @@ void executeBlock(Sprite &sprite,Block & block) {
                    change_var_by(sprite,nameofvar,f);
                     break;
                 }
-
-
             }
             break;
         }
-            //remains
     }
 }
 void exec_sprites(Sprite sp[50],SDL_Event& e) {
@@ -425,26 +377,24 @@ void exec_sprites(Sprite sp[50],SDL_Event& e) {
             executeBlock(s,b);
         }
 
-//if
+        //if
         if (s.blocks.blocks[s.current_block].block_id.general_type==CONT&&s.blocks.blocks[s.current_block].block_id.control_mode==IF) {
             int condition =std::stoi(s.blocks.blocks[s.current_block].inputs[0].line.text);
             handle_if(s,s.current_block++,condition);
                  s.current_block++;
         }
-//if-else
-         if (s.blocks.blocks[s.current_block].block_id.general_type==CONT&&s.blocks.blocks[s.current_block].block_id.control_mode==IFELSE) {
+        //if-else
+        if (s.blocks.blocks[s.current_block].block_id.general_type==CONT&&s.blocks.blocks[s.current_block].block_id.control_mode==IFELSE) {
             int condition =std::stoi(s.blocks.blocks[s.current_block].inputs[0].line.text);
             handle_else_if(s,s.current_block++,condition);
-             s.current_block++;
-
+            s.current_block++;
         }
-      //repeat
-   // if (s.blocks.blocks[s.current_block].block_id.general_type==CONT&&s.blocks.blocks[s.current_block].block_id.control_mode==REPEAT) {
-   //          int repeat =std::stoi(s.blocks.blocks[s.current_block].inputs[0].line.text);
-   //           handle_repeat(s,s.current_block++, repeat);
-   //           s.current_block++;
-   //
-   //      }
+        //repeat
+        // if (s.blocks.blocks[s.current_block].block_id.general_type==CONT&&s.blocks.blocks[s.current_block].block_id.control_mode==REPEAT) {
+        //     int repeat =std::stoi(s.blocks.blocks[s.current_block].inputs[0].line.text);
+        //     handle_repeat(s,s.current_block++, repeat);
+        //     s.current_block++;
+        // }
         s.current_block++;
 
     }

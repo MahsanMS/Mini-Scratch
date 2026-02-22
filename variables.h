@@ -11,4 +11,4 @@ void change_var_by(Sprite &sprite,std::string nameofvar,float f) {
     sprite.var[nameofvar]+= f;
 }
 
-#endif //MINI_SCRATCH_VARIABLES_H
+#endif

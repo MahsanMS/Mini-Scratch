@@ -3,16 +3,13 @@
 
 #include "UI.h"
 
-// Motion Commands
-
-// Functions:
-
 // Linear movement
 void move(Sprite* sprite, float steps) {
     if (!sprite) {
         std::cout << "Error: Sprite not found!\n";
         return;
     }
+
     if (!sprite->state.visible) {
         std::cout << "Sprite is invisible!\n";
         return;

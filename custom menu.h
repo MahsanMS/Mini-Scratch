@@ -14,7 +14,6 @@ bool drag_r = false;
 bool drag_g = false;
 bool drag_b = false;
 
-
 //color rectangle
 struct handle {
     int y;
@@ -24,7 +23,6 @@ struct handle {
     int handle_r;
 };
 
-
 //shapes
 enum place{ PALLETE, AREA };
 
@@ -33,8 +31,6 @@ struct shape{
     SDL_Texture* tex;
     SDL_Rect rectshape;
 };
-
-
 
 struct CustomMenuState {
 
@@ -82,12 +78,8 @@ struct CustomMenuState {
     Uint8 b = 0;
 };
 
-
 // function declarations
-void custom_manage_event(Sprite& s,
-                         SDL_Renderer* renderer,
-                         SDL_Event& event,
-                         CustomMenuState& state) {
+void custom_manage_event(Sprite& s, SDL_Renderer* renderer, SDL_Event& event, CustomMenuState& state) {
     int w,h;
     SDL_GetRendererOutputSize(renderer,&w,&h);
 
@@ -110,7 +102,7 @@ void custom_manage_event(Sprite& s,
         mid_h
     };
 
-    if(event.type == SDL_MOUSEBUTTONDOWN)
+    if (event.type == SDL_MOUSEBUTTONDOWN)
     {
         for(int i = state.shapes.size()-1 ; i>=0 ; i--)
         {
@@ -135,20 +127,18 @@ void custom_manage_event(Sprite& s,
             }
         }
 
-        if(pencil){
+        if (pencil){
             draw = true;
         }
 
-        if(erasesel){
+        if (erasesel){
             erasing = true;
         }
     }
 
-
-
-    if(event.type == SDL_MOUSEMOTION)
+    if (event.type == SDL_MOUSEMOTION)
     {
-        if(state.dragging && state.select!=-1)
+        if (state.dragging && state.select!=-1)
         {
             state.new_shapes[state.select].rectshape.x =
                     state.mx - state.offsetx;
@@ -157,7 +147,7 @@ void custom_manage_event(Sprite& s,
                     state.my - state.offsety;
         }
 
-        if(drag_r){
+        if (drag_r){
             state.red.handle_x =
                 std::max(state.red.start,
                 std::min(state.mx,state.red.end));
@@ -168,7 +158,7 @@ void custom_manage_event(Sprite& s,
             state.r = Uint8(255*t);
         }
 
-        if(drag_g){
+        if (drag_g){
             state.green.handle_x =
                 std::max(state.green.start,
                 std::min(state.mx,state.green.end));
@@ -179,7 +169,7 @@ void custom_manage_event(Sprite& s,
             state.g = Uint8(255*t);
         }
 
-        if(drag_b){
+        if (drag_b){
             state.blue.handle_x =
                 std::max(state.blue.start,
                 std::min(state.mx,state.blue.end));
@@ -193,7 +183,7 @@ void custom_manage_event(Sprite& s,
 
 
 
-    if(event.type == SDL_MOUSEBUTTONUP)
+    if (event.type == SDL_MOUSEBUTTONUP)
     {
         draw=false;
         erasing=false;
@@ -202,40 +192,32 @@ void custom_manage_event(Sprite& s,
     }
 
 
-    if(event.type == SDL_MOUSEWHEEL)
+    if (event.type == SDL_MOUSEWHEEL)
     {
-        if(pencil){
-            if(event.wheel.y>0) state.pensize+=2;
+        if (pencil){
+            if (event.wheel.y>0) state.pensize+=2;
             else state.pensize-=2;
 
-            if(state.pensize<5) state.pensize=5;
-            if(state.pensize>50) state.pensize=50;
+            if (state.pensize<5) state.pensize=5;
+            if (state.pensize>50) state.pensize=50;
         }
-        else if(erasesel){
-            if(event.wheel.y>0) state.erasesize+=2;
+        else if (erasesel){
+            if (event.wheel.y>0) state.erasesize+=2;
             else state.erasesize-=2;
 
-            if(state.erasesize<5) state.erasesize=5;
-            if(state.erasesize>50) state.erasesize=50;
+            if (state.erasesize<5) state.erasesize=5;
+            if (state.erasesize>50) state.erasesize=50;
         }
     }
 }
 
-void render_menu(Sprite& s,
-                 SDL_Renderer* renderer,
-                 CustomMenuState& state) {
+void render_menu(Sprite& s, SDL_Renderer* renderer, CustomMenuState& state) {
 
     SDL_RenderClear(renderer);
 
-    SDL_RenderCopy(renderer,
-                   s.customs[s.current_custom].texture,
-                   NULL,
-                   &state.middle_sprite);
+    SDL_RenderCopy(renderer, s.customs[s.current_custom].texture, NULL, &state.middle_sprite);
 
-    SDL_RenderCopy(renderer,
-                   s.customs[s.current_custom].canvas,
-                   NULL,
-                   &state.middle_sprite);
+    SDL_RenderCopy(renderer, s.customs[s.current_custom].canvas, NULL, &state.middle_sprite);
 
     for(auto &b : state.shapes)
         SDL_RenderCopy(renderer,b.tex,NULL,&b.rectshape);
@@ -263,31 +245,16 @@ void render_menu(Sprite& s,
     state.erasepenbtn.w = state.erasesize;
     state.erasepenbtn.h = state.erasesize;
 
-    SDL_SetTextureColorMod(state.pen,
-                           state.r,
-                           state.g,
-                           state.b);
+    SDL_SetTextureColorMod(state.pen, state.r, state.g, state.b);
 
     SDL_RenderCopy(renderer,state.pen,NULL,&state.penbtn);
     SDL_RenderCopy(renderer,state.eraser,NULL,&state.erasepenbtn);
 
-    filledCircleRGBA(renderer,
-                     state.red.handle_x,
-                     state.red.y,
-                     state.red.handle_r,
-                     255,255,255,255);
+    filledCircleRGBA(renderer, state.red.handle_x, state.red.y, state.red.handle_r, 255,255,255,255);
 
-    filledCircleRGBA(renderer,
-                     state.green.handle_x,
-                     state.green.y,
-                     state.green.handle_r,
-                     255,255,255,255);
+    filledCircleRGBA(renderer, state.green.handle_x, state.green.y, state.green.handle_r, 255,255,255,255);
 
-    filledCircleRGBA(renderer,
-                     state.blue.handle_x,
-                     state.blue.y,
-                     state.blue.handle_r,
-                     255,255,255,255);
+    filledCircleRGBA(renderer, state.blue.handle_x, state.blue.y, state.blue.handle_r, 255,255,255,255);
 
     SDL_RenderPresent(renderer);
 }
